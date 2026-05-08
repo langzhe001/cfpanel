@@ -1,0 +1,36 @@
+name = "sunpanel"
+main = "worker/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "SUNPANEL_DB"
+database_name = "sunpanel-db"
+database_id = "b0f2e49a-01db-41d6-8048-e168735b31e4"
+
+[vars]
+ENVIRONMENT = "production"
+
+[assets]
+directory = "./frontend/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application" 
+
+# ADMIN_PASSWORD 必须通过环境变量配置，不能硬编码
+# 请在部署时通过 wrangler secret put ADMIN_PASSWORD 设置
+
+
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1
