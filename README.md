@@ -5,6 +5,7 @@
 ## 功能特性
 
 ### 前台功能
+
 - 分组显示功能 - 支持多层级分组管理
 - 图标自定义显示 - 支持 Iconify 图标库
 - 主题个性化 - 浅色/深色/自动模式
@@ -12,6 +13,11 @@
 - 响应式布局 - 适配各种设备
 
 ### 后台功能
+
+test
+
+@Yy123456
+
 - 个人信息管理
 - 个性化设置（主题、壁纸、布局）
 - 分组管理
@@ -26,16 +32,14 @@
 ### 第一步：准备工作
 
 1. **注册 Cloudflare 账号**
-   - 访问 https://dash.cloudflare.com/
+   - 访问 <https://dash.cloudflare.com/>
    - 使用邮箱注册（支持 Gmail、QQ邮箱等）
-
 2. **安装 Wrangler CLI**
    - 打开终端（Windows 用户建议使用 PowerShell 或 Git Bash）
    - 运行以下命令：
    ```bash
    npm install -g wrangler
    ```
-
 3. **登录 Cloudflare**
    ```bash
    wrangler login
@@ -57,7 +61,6 @@
 1. **编辑 wrangler.toml 文件**
 
    打开项目根目录下的 `wrangler.toml`，修改以下内容：
-
    ```toml
    name = "sunpanel"  # 改成你喜欢的名字，会成为你的 worker URL 前缀
    main = "worker/index.ts"
@@ -72,9 +75,8 @@
    [vars]
    ENVIRONMENT = "production"
    ```
-
 2. **设置管理员密码**
-   
+
    通过环境变量设置密码（不建议在配置文件中明文存储）：
    ```bash
    wrangler secret put ADMIN_PASSWORD
@@ -114,6 +116,7 @@ wrangler deploy
 ```
 
 如果成功，你会看到类似：
+
 ```
 Successfully deployed to https://sunpanel.xxx.workers.dev
 ```
@@ -147,37 +150,45 @@ npm run dev:worker
 
 ## 文件说明
 
-| 文件/文件夹 | 说明 |
-|------------|------|
-| `frontend/` | Vue 3 前端源码 |
-| `worker/` | Cloudflare Workers 后端代码 |
-| `wrangler.toml` | Cloudflare 配置文件 |
-| `migrations/` | 数据库迁移脚本 |
+| 文件/文件夹          | 说明                      |
+| --------------- | ----------------------- |
+| `frontend/`     | Vue 3 前端源码              |
+| `worker/`       | Cloudflare Workers 后端代码 |
+| `wrangler.toml` | Cloudflare 配置文件         |
+| `migrations/`   | 数据库迁移脚本                 |
 
 ## 常见问题
 
 ### Q: 部署后显示 500 错误？
+
 检查 `wrangler.toml` 中的 D1 数据库 id 是否正确，以及是否登录了 wrangler。
 
 ### Q: 登录显示账号密码错误？
+
 默认管理员：
+
 - 用户名：`admin`
 - 密码：通过 `wrangler secret put ADMIN_PASSWORD` 设置的密码
 
 ### Q: 如何修改管理员密码？
+
 运行 `wrangler secret put ADMIN_PASSWORD` 设置新密码，然后重新部署。
 
 ### Q: 可以在本地运行吗？
+
 可以，但需要使用 Wrangler 模拟环境。运行 `npm run dev:worker` 启动预览。
 
 ### Q: 数据存储在哪里？
+
 所有数据存储在 Cloudflare D1 数据库中。
 
 ### Q: 免费版有什么限制？
+
 - Workers 有 100,000 请求/天
 - D1 有 1GB 存储、100,000 次读取/天、1,000 次写入/天
 
 ### Q: Docker 功能在哪里？
+
 Docker 管理功能在 Cloudflare Workers 环境中不可用（需要直接访问 Docker API）。
 
 ## 技术栈

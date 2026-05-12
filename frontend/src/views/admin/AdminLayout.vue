@@ -133,20 +133,29 @@ const userMenuItems = [
   { path: '/admin/personalization', label: '个性化设置', icon: 'ph:paint-brush-bold' },
 ]
 
-const adminMenuItems = [
-  { path: '/admin/groups', label: '分组管理', icon: 'ph:folder-bold' },
-  { path: '/admin/gallery', label: '图库', icon: 'ph:image-bold' },
-  { path: '/admin/export-import', label: '导出/导入', icon: 'ph:export-bold' },
-  { path: '/admin/api', label: 'API / Open API', icon: 'ph:code-bold' },
-  { path: '/admin/accounts', label: '账号管理', icon: 'ph:users-bold' },
-  { path: '/admin/public-gallery', label: '公共图库', icon: 'ph:images-bold' },
-  { path: '/admin/global-settings', label: '全局设置', icon: 'ph:gear-bold' },
-  { path: '/admin/migration', label: '迁移', icon: 'ph:git-merge-bold' },
-  { path: '/admin/about', label: '关于', icon: 'ph:info-bold' },
-]
+const adminMenuItems = computed(() => {
+  const items = [
+    { path: '/admin/groups', label: '分组管理', icon: 'ph:folder-bold' },
+    { path: '/admin/gallery', label: '图库', icon: 'ph:image-bold' },
+    { path: '/admin/export-import', label: '导出/导入', icon: 'ph:export-bold' },
+    { path: '/admin/api', label: 'API / Open API', icon: 'ph:code-bold' },
+  ]
+  
+  // 只有管理员才显示账号管理等功能
+  if (authStore.user?.role === 'admin') {
+    items.push({ path: '/admin/accounts', label: '账号管理', icon: 'ph:users-bold' })
+    items.push({ path: '/admin/public-gallery', label: '公共图库', icon: 'ph:images-bold' })
+    items.push({ path: '/admin/global-settings', label: '全局设置', icon: 'ph:gear-bold' })
+    items.push({ path: '/admin/migration', label: '迁移', icon: 'ph:git-merge-bold' })
+  }
+  
+  items.push({ path: '/admin/about', label: '关于', icon: 'ph:info-bold' })
+  
+  return items
+})
 
 const currentPageTitle = computed(() => {
-  const allItems = [...userMenuItems, ...adminMenuItems]
+  const allItems = [...userMenuItems, ...adminMenuItems.value]
   const current = allItems.find(item => isActive(item.path))
   return current?.label || 'SunPanel'
 })

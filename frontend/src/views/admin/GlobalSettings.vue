@@ -1,5 +1,13 @@
 <template>
   <div class="space-y-6">
+    <ErrorMessage
+      v-if="error"
+      :message="error"
+      :type="messageType"
+      :closable="true"
+      @close="error = ''"
+    />
+
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
       <div class="p-6 border-b border-slate-200 dark:border-slate-700">
         <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">全局设置</h3>
@@ -10,15 +18,16 @@
           <input 
             v-model="settings.siteName" 
             type="text" 
-            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
             :disabled="isLoading"
+            placeholder="SunPanel"
           />
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">默认语言</label>
           <select 
             v-model="settings.defaultLanguage" 
-            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
             :disabled="isLoading"
           >
             <option value="zh-CN">简体中文</option>
@@ -32,7 +41,7 @@
             type="number" 
             min="2" 
             max="12" 
-            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
             :disabled="isLoading"
           />
         </div>
@@ -54,13 +63,17 @@
           </button>
         </div>
         <div class="flex justify-end gap-3">
-          <button @click="resetSettings" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
+          <button 
+            @click="resetSettings" 
+            :disabled="isLoading"
+            class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+          >
             重置默认
           </button>
           <button 
             @click="saveSettings" 
-            class="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
             :disabled="isLoading"
+            class="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-colors"
           >
             <span v-if="isLoading" class="flex items-center gap-2">
               <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -74,14 +87,6 @@
         </div>
       </div>
     </div>
-
-    <div v-if="message" class="p-4 rounded-lg" :class="messageType === 'success' ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800'">
-      <div class="flex items-center gap-3">
-        <Icon v-if="messageType === 'success'" icon="ph:check-circle-bold" class="w-5 h-5 text-green-500" />
-        <Icon v-else icon="ph:x-circle-bold" class="w-5 h-5 text-red-500" />
-        <p :class="messageType === 'success' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">{{ message }}</p>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -89,6 +94,7 @@
 import { reactive, ref, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { settingsApi } from '@/api'
+import ErrorMessage from '@/components/ErrorMessage.vue'
 
 const defaultSettings = {
   siteName: 'SunPanel',
@@ -99,7 +105,7 @@ const defaultSettings = {
 
 const settings = reactive({ ...defaultSettings })
 const isLoading = ref(false)
-const message = ref('')
+const error = ref('')
 const messageType = ref<'success' | 'error'>('success')
 
 const loadSettings = async () => {
@@ -112,13 +118,13 @@ const loadSettings = async () => {
       if (savedSettings.language !== undefined) settings.defaultLanguage = savedSettings.language
       if (savedSettings.itemsPerRow !== undefined) settings.defaultItemsPerRow = savedSettings.itemsPerRow
     }
-  } catch (error) {
+  } catch (err: any) {
     const saved = localStorage.getItem('globalSettings')
     if (saved) {
       const savedSettings = JSON.parse(saved)
       Object.assign(settings, savedSettings)
     }
-    console.error('加载全局设置失败:', error)
+    console.error('加载全局设置失败:', err)
   } finally {
     isLoading.value = false
   }
@@ -126,7 +132,7 @@ const loadSettings = async () => {
 
 const saveSettings = async () => {
   isLoading.value = true
-  message.value = ''
+  error.value = ''
   
   try {
     localStorage.setItem('globalSettings', JSON.stringify(settings))
@@ -135,16 +141,14 @@ const saveSettings = async () => {
       language: settings.defaultLanguage,
       itemsPerRow: settings.defaultItemsPerRow
     })
-    message.value = '设置保存成功！'
+    error.value = '设置保存成功！'
     messageType.value = 'success'
-  } catch (error) {
-    message.value = '保存失败，请重试'
+  } catch (err: any) {
+    error.value = err.response?.data?.message || '保存失败，请重试'
     messageType.value = 'error'
   } finally {
     isLoading.value = false
-    setTimeout(() => {
-      message.value = ''
-    }, 3000)
+    setTimeout(() => { error.value = '' }, 3000)
   }
 }
 

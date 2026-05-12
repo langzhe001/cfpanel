@@ -14,15 +14,20 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
+import { useAuthStore } from '@/stores/auth'
 import SessionWarning from '@/components/SessionWarning.vue'
 
 const settingsStore = useSettingsStore()
+const authStore = useAuthStore()
 const settingsLoaded = ref(false)
 
 const isDark = computed(() => settingsStore.theme === 'dark')
 
 onMounted(async () => {
   await settingsStore.loadSettings()
+  if (authStore.token) {
+    await authStore.fetchUser()
+  }
   settingsLoaded.value = true
 })
 </script>

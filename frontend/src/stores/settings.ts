@@ -45,9 +45,9 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
-  const updateSettings = (newSettings: Partial<Settings>) => {
+  const updateSettings = async (newSettings: Partial<Settings>) => {
     settings.value = { ...settings.value, ...newSettings }
-    saveSettings()
+    await saveSettings()
   }
 
   const resetSettings = () => {

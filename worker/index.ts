@@ -1,6 +1,6 @@
 /**
  * SunPanel Cloudflare Workers API
- * 使用 D1 数据库存储所有数据（无KV依赖）
+ * 使用 D1 数据库存储元数据，KV 存储图片数据
  */
 
 export interface Env {
@@ -11,6 +11,7 @@ export interface Env {
   ASSETS: {
     fetch: (request: Request) => Promise<Response>
   }
+  IMAGES_KV: KVNamespace
 }
 
 const getAllowedOrigins = (env: Env): string[] => {
@@ -60,11 +61,13 @@ const securityHeaders = {
   'X-Frame-Options': 'DENY',
   'X-XSS-Protection': '1; mode=block',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests",
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests",
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
   'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=()',
   'Cross-Origin-Opener-Policy': 'same-origin',
-  'Cross-Origin-Resource-Policy': 'same-origin'
+  'Cross-Origin-Resource-Policy': 'same-origin',
+  'X-Permitted-Cross-Domain-Policies': 'none',
+  'Expect-CT': 'max-age=86400, enforce'
 }
 
 const generateRequestId = (): string => {
@@ -73,13 +76,47 @@ const generateRequestId = (): string => {
   return Array.from(array, b => b.toString(16).padStart(2, '0')).join('')
 }
 
+const sanitizeLogValue = (value: unknown): string => {
+  if (value === null || value === undefined) return 'null'
+  
+  const strValue = String(value)
+  
+  const sensitivePatterns = [
+    /password/i,
+    /token/i,
+    /secret/i,
+    /csrf/i,
+    /authorization/i
+  ]
+  
+  if (sensitivePatterns.some(pattern => pattern.test(strValue))) {
+    return '[REDACTED]'
+  }
+  
+  if (strValue.length > 200) {
+    return strValue.substring(0, 200) + '...'
+  }
+  
+  return strValue
+}
+
 const log = (message: string, level: 'info' | 'warn' | 'error' = 'info', requestId?: string) => {
   const timestamp = new Date().toISOString()
   const requestPrefix = requestId ? `[${requestId}] ` : ''
-  console.log(`[${level.toUpperCase()}] ${timestamp} - ${requestPrefix}${message}`)
+  const sanitizedMessage = sanitizeLogValue(message)
+  console.log(`[${level.toUpperCase()}] ${timestamp} - ${requestPrefix}${sanitizedMessage}`)
 }
 
 type AuditEventType = 'LOGIN' | 'LOGOUT' | 'REGISTER' | 'PASSWORD_CHANGE' | 'PROFILE_UPDATE' | 'DATA_EXPORT' | 'DATA_IMPORT' | 'GROUP_CREATE' | 'GROUP_UPDATE' | 'GROUP_DELETE' | 'ITEM_CREATE' | 'ITEM_UPDATE' | 'ITEM_DELETE' | 'IMAGE_UPLOAD' | 'IMAGE_DELETE' | 'LOGIN_FAILED' | 'RATE_LIMIT_EXCEEDED' | 'CSRF_VALIDATION_FAILED' | 'UNAUTHORIZED_ACCESS'
+
+const maskIpAddress = (ip: string): string => {
+  if (!ip || ip === 'unknown') return 'unknown'
+  const parts = ip.split('.')
+  if (parts.length === 4) {
+    return `${parts[0]}.${parts[1]}.xxx.xxx`
+  }
+  return 'masked'
+}
 
 const auditLog = async (env: Env, event: AuditEventType, data: {
   userId?: number
@@ -100,8 +137,8 @@ const auditLog = async (env: Env, event: AuditEventType, data: {
       event,
       data.userId || null,
       data.username || null,
-      data.ip || null,
-      data.userAgent || null,
+      maskIpAddress(data.ip || '') || null,
+      data.userAgent ? (data.userAgent.length > 200 ? data.userAgent.substring(0, 200) : data.userAgent) : null,
       data.resource || null,
       data.action || null,
       data.result || null,
@@ -221,9 +258,45 @@ const GroupSchema = z.object({
   parentId: z.string().nullable().optional()
 })
 
+const validateUrl = (url: string): boolean => {
+  if (!url || url.length > 500) return false
+  
+  try {
+    const urlObj = new URL(url)
+    
+    const allowedProtocols = ['http:', 'https:']
+    if (!allowedProtocols.includes(urlObj.protocol)) {
+      return false
+    }
+    
+    if (urlObj.hostname === 'localhost' && urlObj.protocol === 'http:') {
+      return true
+    }
+    
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]$/.test(urlObj.hostname)) {
+      return false
+    }
+    
+    if (urlObj.pathname.includes('..')) {
+      return false
+    }
+    
+    const suspiciousParams = ['javascript', 'vbscript', 'data:', 'mocha:', 'livescript:']
+    for (const param of suspiciousParams) {
+      if (url.toLowerCase().includes(param)) {
+        return false
+      }
+    }
+    
+    return true
+  } catch {
+    return false
+  }
+}
+
 const ItemSchema = z.object({
   name: z.string().min(1).max(100),
-  url: z.string().url().max(500),
+  url: z.string().refine(validateUrl, '无效的 URL').max(500),
   icon: z.string().max(255).optional(),
   description: z.string().max(500).optional(),
   groupId: z.string(),
@@ -234,20 +307,64 @@ const ItemSchema = z.object({
   windowHeight: z.number().int().positive().optional()
 })
 
-const sanitizeJs = (input: string): string => {
-  if (!input) return ''
+const sanitizeJs = (input: string): { sanitized: string; warnings: string[] } => {
+  if (!input) return { sanitized: '', warnings: [] }
   
-  return input
+  const warnings: string[] = []
+  
+  let sanitized = input
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;')
-    .replace(/javascript:/gi, '')
-    .replace(/on\w+\s*=/gi, '')
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-    .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
-    .replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, '')
+  
+  if (/javascript:/gi.test(input)) {
+    warnings.push('检测到 JavaScript 协议，已移除')
+    sanitized = sanitized.replace(/javascript:/gi, '')
+  }
+  
+  if (/vbscript:/gi.test(input)) {
+    warnings.push('检测到 VBScript 协议，已移除')
+    sanitized = sanitized.replace(/vbscript:/gi, '')
+  }
+  
+  if (/on\w+\s*=/gi.test(input)) {
+    warnings.push('检测到事件处理器属性，已移除')
+    sanitized = sanitized.replace(/on\w+\s*=/gi, '')
+  }
+  
+  if (/<script[^>]*>[\s\S]*?<\/script>/gi.test(input)) {
+    warnings.push('检测到 script 标签，已移除')
+    sanitized = sanitized.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+  }
+  
+  if (/<iframe[^>]*>[\s\S]*?<\/iframe>/gi.test(input)) {
+    warnings.push('检测到 iframe 标签，已移除')
+    sanitized = sanitized.replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
+  }
+  
+  if (/<svg[^>]*>[\s\S]*?<\/svg>/gi.test(input)) {
+    warnings.push('检测到 svg 标签，已移除')
+    sanitized = sanitized.replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, '')
+  }
+  
+  if (/eval\s*\(/gi.test(input)) {
+    warnings.push('检测到 eval 调用，已移除')
+    sanitized = sanitized.replace(/eval\s*\([^)]*\)/gi, '')
+  }
+  
+  if (/document\s*\./gi.test(input)) {
+    warnings.push('检测到 document 对象访问，已移除')
+    sanitized = sanitized.replace(/document\s*\.[a-zA-Z]+/gi, '')
+  }
+  
+  if (/window\s*\./gi.test(input)) {
+    warnings.push('检测到 window 对象访问，已移除')
+    sanitized = sanitized.replace(/window\s*\.[a-zA-Z]+/gi, '')
+  }
+  
+  return { sanitized, warnings }
 }
 
 const SettingsSchema = z.object({
@@ -258,6 +375,9 @@ const SettingsSchema = z.object({
   showSearchBar: z.boolean(),
   searchEngine: z.string().regex(/^https?:\/\/.+/),
   itemsPerRow: z.number().int().positive(),
+  mobileItemsPerRow: z.number().int().positive(),
+  tabletItemsPerRow: z.number().int().positive(),
+  desktopItemsPerRow: z.number().int().positive(),
   showGroupNames: z.boolean(),
   customCSS: z.string().max(5000),
   customJS: z.string().max(5000)
@@ -347,25 +467,8 @@ const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
 }
 
 const initAdminUser = async (env: Env): Promise<void> => {
-  const existing = await env.SUNPANEL_DB.prepare(`
-    SELECT id FROM users WHERE username = 'admin'
-  `).first()
-
-  if (existing) return
-
-  if (!env.ADMIN_PASSWORD) {
-    throw new Error('ADMIN_PASSWORD 环境变量未配置')
-  }
-
-  const passwordHash = await hashPassword(env.ADMIN_PASSWORD)
-  const now = new Date().toISOString()
-
-  await env.SUNPANEL_DB.prepare(`
-    INSERT INTO users (username, password, nickname, role, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).bind('admin', passwordHash, '管理员', 'admin', now, now).run()
-
-  log('管理员账号已初始化', 'info')
+  // 不再自动创建 admin 账号，第一个注册的用户将成为管理员
+  return
 }
 
 const generateCsrfToken = (): string => {
@@ -578,6 +681,9 @@ interface Settings {
   showSearchBar: number
   searchEngine: string
   itemsPerRow: number
+  mobileItemsPerRow: number
+  tabletItemsPerRow: number
+  desktopItemsPerRow: number
   showGroupNames: number
   customCSS: string
   customJS: string
@@ -858,7 +964,7 @@ const d1Settings = {
       desktopItemsPerRow: data.desktopItemsPerRow ?? existing.desktopItemsPerRow,
       showGroupNames: data.showGroupNames ?? existing.showGroupNames,
       customCSS: data.customCSS ?? existing.customCSS,
-      customJS: sanitizeJs(data.customJS ?? existing.customJS),
+      customJS: sanitizeJs(data.customJS ?? existing.customJS).sanitized,
       createdAt: existing.createdAt || now
     }
 
@@ -912,6 +1018,29 @@ export default {
         log(`请求图片: ${filename}`, 'info', requestId)
         
         try {
+          // 首先尝试从 KV 读取图片
+          const kvData = await env.IMAGES_KV.get(filename, 'arrayBuffer')
+          
+          if (kvData) {
+            log(`从 KV 读取图片成功`, 'info', requestId)
+            
+            // 从 D1 读取 content_type
+            const dbResult = await env.SUNPANEL_DB.prepare(`
+              SELECT content_type FROM images WHERE filename = ?
+            `).bind(filename).first()
+            
+            const contentType = dbResult?.content_type || 'application/octet-stream'
+            
+            return new Response(kvData, {
+              status: 200,
+              headers: {
+                'Content-Type': contentType,
+                'Cache-Control': 'public, max-age=31536000'
+              }
+            })
+          }
+          
+          // 如果 KV 没有，尝试从 D1 读取（向后兼容）
           const result = await env.SUNPANEL_DB.prepare(`
             SELECT content_type, data FROM images WHERE filename = ?
           `).bind(filename).first()
@@ -921,7 +1050,7 @@ export default {
             return new Response('图片不存在', { status: 404 })
           }
 
-          log(`找到图片, content_type: ${result.content_type}, data长度: ${(result.data as string).length}`, 'info', requestId)
+          log(`找到图片, content_type: ${result.content_type}`, 'info', requestId)
 
           const base64Data = result.data as string
           if (!base64Data || base64Data.length === 0) {
@@ -978,6 +1107,10 @@ export default {
       log('健康检查成功', 'info', requestId)
       return jsonResponse({ status: 'ok', timestamp: new Date().toISOString(), requestId }, 200, corsHeaders)
     }
+    if (path === '/favicon.svg' && method === 'GET') {
+      log('获取 favicon 成成功', 'info', requestId)
+      return new Response('../public/favicon.svg', { status: 200, headers: { 'Content-Type': 'image/svg+xml' } })
+    }
 
     const sizeError = checkRequestSize(request, corsHeaders, requestId)
     if (sizeError) {
@@ -1000,8 +1133,6 @@ export default {
     try {
       if (path === '/auth/login' && method === 'POST') {
         try {
-          await initAdminUser(env)
-
           const body = await request.json()
           const validation = LoginSchema.safeParse(body)
           if (!validation.success) {
@@ -1009,12 +1140,14 @@ export default {
           }
 
           const { username, password } = validation.data
+          log(`尝试登录用户: ${username}`, 'info', requestId)
 
           const result = await env.SUNPANEL_DB.prepare(`
             SELECT id, username, password, nickname, role FROM users WHERE username = ?
           `).bind(username).first()
 
           if (!result) {
+            log(`用户不存在: ${username}`, 'warn', requestId)
             await auditLog(env, 'LOGIN_FAILED', {
               username: username,
               ip: clientIp,
@@ -1025,8 +1158,10 @@ export default {
             return errorResponse('用户名或密码错误', 401, corsHeaders, requestId)
           }
 
+          log(`找到用户: ${result.username}, 验证密码...`, 'info', requestId)
           const isPasswordValid = await verifyPassword(password, result.password)
           if (!isPasswordValid) {
+            log(`密码验证失败: ${username}`, 'warn', requestId)
             await auditLog(env, 'LOGIN_FAILED', {
               userId: Number(result.id),
               username: result.username,
@@ -1626,7 +1761,7 @@ export default {
         if (!authResult.success) return authResult.response!
 
         const user = await env.SUNPANEL_DB.prepare(`
-          SELECT id, username, nickname, role FROM users WHERE id = ?
+          SELECT id, username, nickname, role, avatar,email FROM users WHERE id = ?
         `).bind(authResult.session!.user_id).first()
 
         if (!user) {
@@ -1637,7 +1772,9 @@ export default {
           id: user.id.toString(),
           username: user.username,
           nickname: user.nickname || '用户',
-          role: user.role
+          role: user.role,
+          avatar: user.avatar || '',
+          email: user.email || ''
         }, 200, corsHeaders, requestId)
       }
 
@@ -1670,6 +1807,9 @@ export default {
       if (path === '/users' && method === 'POST') {
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) return authResult.response!
+
+        const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
+        if (!csrfResult.success) return csrfResult.response!
 
         const sessionUser = await env.SUNPANEL_DB.prepare(`
           SELECT role FROM users WHERE id = ?
@@ -1715,6 +1855,9 @@ export default {
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) return authResult.response!
 
+        const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
+        if (!csrfResult.success) return csrfResult.response!
+
         const sessionUser = await env.SUNPANEL_DB.prepare(`
           SELECT role FROM users WHERE id = ?
         `).bind(authResult.session!.user_id).first()
@@ -1747,6 +1890,9 @@ export default {
       if (path.startsWith('/users/') && method === 'DELETE') {
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) return authResult.response!
+
+        const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
+        if (!csrfResult.success) return csrfResult.response!
 
         const sessionUser = await env.SUNPANEL_DB.prepare(`
           SELECT role FROM users WHERE id = ?
@@ -1839,6 +1985,67 @@ export default {
         return jsonResponse({ success: true, message: '密码修改成功，请重新登录' }, 200, corsHeaders, requestId)
       }
 
+      if (path === '/users/avatar' && method === 'POST') {
+        const authResult = await authenticate(request, env, corsHeaders)
+        if (!authResult.success) return authResult.response!
+
+        const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
+        if (!csrfResult.success) return csrfResult.response!
+
+        let formData: FormData
+        try {
+          formData = await request.formData()
+        } catch {
+          return errorResponse('请求格式错误', 400, corsHeaders, requestId)
+        }
+
+        const file = formData.get('file') as File | null
+        if (!file) {
+          return errorResponse('未提供文件', 400, corsHeaders, requestId)
+        }
+
+        const maxSize = 2 * 1024 * 1024
+        if (file.size > maxSize) {
+          return errorResponse('文件大小不能超过2MB', 400, corsHeaders, requestId)
+        }
+
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/jpg']
+        if (!allowedTypes.includes(file.type)) {
+          return errorResponse('只允许上传JPG、PNG、GIF、WebP格式的图片', 400, corsHeaders, requestId)
+        }
+
+        try {
+          const arrayBuffer = await file.arrayBuffer()
+          const filename = `avatar-${authResult.session!.user_id}-${Date.now()}.${file.type.split('/')[1]}`
+          
+          // 首先将头像存储到 KV
+          await env.IMAGES_KV.put(filename, arrayBuffer, {
+            metadata: {
+              contentType: file.type,
+              userId: authResult.session!.user_id,
+              isPublic: true
+            }
+          })
+          
+          // 然后将元数据存储到 D1
+          await env.SUNPANEL_DB.prepare(`
+            INSERT INTO images (url, filename, content_type, data, user_id, is_public, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `).bind(`/gallery/images/${filename}`, filename, file.type, '', authResult.session!.user_id, 1, new Date().toISOString()).run()
+
+          const avatarUrl = `/gallery/images/${filename}`
+
+          await env.SUNPANEL_DB.prepare(`
+            UPDATE users SET avatar = ?, updated_at = ? WHERE id = ?
+          `).bind(avatarUrl, new Date().toISOString(), authResult.session!.user_id).run()
+
+          return jsonResponse({ avatar: avatarUrl }, 200, corsHeaders, requestId)
+        } catch (error: any) {
+          log(`头像上传失败: ${error.message}`, 'error', requestId)
+          return errorResponse('头像上传失败', 500, corsHeaders, requestId)
+        }
+      }
+
       if (path === '/public-gallery' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) return authResult.response!
@@ -1871,15 +2078,23 @@ export default {
             return errorResponse('用户名已存在', 400, corsHeaders, requestId)
           }
 
+          // 检查是否已有用户，第一个用户设为管理员
+          const userCountResult = await env.SUNPANEL_DB.prepare(`
+            SELECT COUNT(*) as count FROM users
+          `).first()
+          
+          const isFirstUser = !userCountResult || userCountResult.count === 0
+          const role = isFirstUser ? 'admin' : 'user'
+
           const passwordHash = await hashPassword(password)
           const now = new Date().toISOString()
 
           await env.SUNPANEL_DB.prepare(`
             INSERT INTO users (username, password, nickname, role, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?)
-          `).bind(username, passwordHash, nickname || username, 'user', now, now).run()
+          `).bind(username, passwordHash, nickname || username, role, now, now).run()
 
-          log(`新用户注册: ${username}`, 'info', requestId)
+          log(`新用户注册: ${username}, 角色: ${role}`, 'info', requestId)
 
           return jsonResponse({
             message: '注册成功，请登录'
@@ -2010,43 +2225,23 @@ export default {
           const arrayBuffer = await file.arrayBuffer()
           log(`arrayBuffer长度: ${arrayBuffer.byteLength}`, 'info', requestId)
           
-          const bytes = new Uint8Array(arrayBuffer)
-          log(`Uint8Array长度: ${bytes.length}`, 'info', requestId)
-          
-          const base64Data = uint8ArrayToBase64(bytes)
-          log(`base64长度: ${base64Data.length}`, 'info', requestId)
-          log(`base64前100字符: ${base64Data.substring(0, 100)}`, 'info', requestId)
-          
-          try {
-            atob(base64Data)
-            log('base64数据验证通过', 'info', requestId)
-          } catch (e: any) {
-            log(`base64数据验证失败: ${e.message}`, 'error', requestId)
-            
-            const isValidChar = (c: string) => {
-              const code = c.charCodeAt(0)
-              return (code >= 48 && code <= 57) || 
-                     (code >= 65 && code <= 90) || 
-                     (code >= 97 && code <= 122) ||
-                     c === '+' || c === '/' || c === '=' || c === '\n' || c === '\r' || c === ' '
+          // 首先将图片存储到 KV
+          await env.IMAGES_KV.put(filename, arrayBuffer, {
+            metadata: {
+              contentType: file.type,
+              userId: authResult.session!.user_id,
+              isPublic: isPublic
             }
-            
-            for (let i = 0; i < base64Data.length; i++) {
-              if (!isValidChar(base64Data[i])) {
-                log(`发现无效字符: 位置=${i}, 字符=${base64Data[i]}, ASCII=${base64Data.charCodeAt(i)}`, 'error', requestId)
-                break
-              }
-            }
-            
-            return errorResponse('图片数据处理失败', 500, corsHeaders, requestId)
-          }
+          })
+          log(`图片已存入 KV`, 'info', requestId)
           
+          // 然后将元数据存储到 D1（data 字段保持为空或可以用于存储其他元信息）
           const result = await env.SUNPANEL_DB.prepare(`
             INSERT INTO images (url, filename, content_type, data, user_id, is_public, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-          `).bind(`/gallery/images/${filename}`, filename, file.type, base64Data, authResult.session!.user_id, isPublic ? 1 : 0, now).run()
+          `).bind(`/gallery/images/${filename}`, filename, file.type, '', authResult.session!.user_id, isPublic ? 1 : 0, now).run()
 
-          log(`图片插入成功: ${filename}, ID: ${result.meta.last_row_id}`, 'info', requestId)
+          log(`图片元数据插入成功: ${filename}, ID: ${result.meta.last_row_id}`, 'info', requestId)
 
           return jsonResponse({
             id: result.meta.last_row_id.toString(),
@@ -2055,7 +2250,7 @@ export default {
             isPublic: isPublic
           }, 201, corsHeaders, requestId)
         } catch (error: any) {
-          log(`图片插入失败: ${error.message}`, 'error', requestId)
+          log(`图片上传失败: ${error.message}`, 'error', requestId)
           return errorResponse('图片上传失败: ' + error.message, 500, corsHeaders, requestId)
         }
       }
@@ -2070,6 +2265,23 @@ export default {
         const id = parseInt(path.split('/')[2])
         if (isNaN(id)) return errorResponse('无效的图片ID', 400, corsHeaders, requestId)
 
+        // 首先获取图片的 filename
+        const imageResult = await env.SUNPANEL_DB.prepare(`
+          SELECT filename FROM images WHERE id = ? AND user_id = ?
+        `).bind(id, authResult.session!.user_id).first()
+
+        if (imageResult) {
+          const filename = imageResult.filename as string
+          // 尝试从 KV 中删除图片
+          try {
+            await env.IMAGES_KV.delete(filename)
+            log(`从 KV 删除图片成功: ${filename}`, 'info', requestId)
+          } catch (error: any) {
+            log(`从 KV 删除图片失败: ${error.message}`, 'warn', requestId)
+          }
+        }
+
+        // 从 D1 删除图片记录
         await env.SUNPANEL_DB.prepare(`
           DELETE FROM images WHERE id = ? AND user_id = ?
         `).bind(id, authResult.session!.user_id).run()

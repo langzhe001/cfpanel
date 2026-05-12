@@ -5,12 +5,16 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@iconify/vue": "^4.1.1",
     "@vueuse/core": "^10.7.0",
-    "axios": "^1.6.2",
+    "axios": "^1.6.5",
     "bcryptjs": "^3.0.3",
     "pinia": "^2.1.7",
     "vue": "^3.4.0",
@@ -18,13 +22,19 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/vue": "^8.1.0",
     "@types/node": "^20.10.0",
     "@vitejs/plugin-vue": "^4.5.0",
+    "@vitest/ui": "^4.1.5",
     "autoprefixer": "^10.4.16",
+    "jsdom": "^29.1.1",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
     "typescript": "^6.0.3",
     "vite": "^5.0.0",
+    "vitest": "^4.1.5",
+    "vue-test-utils": "^0.5.0",
     "vue-tsc": "^3.2.7"
   }
 }

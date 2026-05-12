@@ -40,3 +40,11 @@ coverage/
 .wrangler/
 
 .trae/
+
+# 测试目录（最常用）
+test/
+tests/
+__tests__/
+
+# 测试配置/结果/覆盖率文件
+*.test.js

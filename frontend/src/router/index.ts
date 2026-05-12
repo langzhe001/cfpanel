@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -60,23 +61,27 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'accounts',
         name: 'Accounts',
-        component: () => import('@/views/admin/Accounts.vue')
+        component: () => import('@/views/admin/Accounts.vue'),
+        meta: { requiresAdmin: true }
       },
       {
         path: 'public-gallery',
         name: 'PublicGallery',
-        component: () => import('@/views/admin/PublicGallery.vue')
+        component: () => import('@/views/admin/PublicGallery.vue'),
+        meta: { requiresAdmin: true }
       },
       {
         path: 'global-settings',
         name: 'GlobalSettings',
-        component: () => import('@/views/admin/GlobalSettings.vue')
+        component: () => import('@/views/admin/GlobalSettings.vue'),
+        meta: { requiresAdmin: true }
       },
   
       {
         path: 'migration',
         name: 'Migration',
-        component: () => import('@/views/admin/Migration.vue')
+        component: () => import('@/views/admin/Migration.vue'),
+        meta: { requiresAdmin: true }
       },
       {
         path: 'about',
@@ -92,43 +97,28 @@ const router = createRouter({
   routes
 })
 
-let tokenValidated = false
-
 router.beforeEach(async (to, from, next) => {
-  const token = localStorage.getItem('token')
+  const authStore = useAuthStore()
   
-  if (to.meta.requiresAuth && !token) {
-    tokenValidated = false
+  if (to.meta.requiresAuth && !authStore.token) {
     next('/login')
     return
   }
   
-  if (to.meta.requiresAuth && token && !tokenValidated) {
+  if (to.meta.requiresAuth && authStore.token && !authStore.user) {
     try {
-      const res = await fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      if (res.status !== 200) {
-        tokenValidated = false
-        localStorage.removeItem('token')
-        localStorage.removeItem('csrfToken')
-        next('/login')
-        return
-      }
-      tokenValidated = true
+      await authStore.fetchUser()
     } catch {
-      tokenValidated = false
-      localStorage.removeItem('token')
-      localStorage.removeItem('csrfToken')
+      await authStore.logout()
       next('/login')
       return
     }
   }
   
-  if (!to.meta.requiresAuth) {
-    tokenValidated = false
+  // 检查是否需要管理员权限
+  if (to.meta.requiresAdmin && authStore.user?.role !== 'admin') {
+    next('/admin/dashboard')
+    return
   }
   
   next()

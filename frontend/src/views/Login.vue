@@ -1,95 +1,143 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-500 to-orange-600">
-    <div class="w-full max-w-md p-8 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl">
-      <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-orange-500 mb-2">☀️ SunPanel</h1>
-        <p class="text-slate-500 dark:text-slate-400">登录到您的控制面板</p>
-      </div>
-
-      <form @submit.prevent="handleLogin" class="space-y-6">
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            用户名
-          </label>
-          <input
-            v-model="form.username"
-            type="text"
-            required
-            class="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-            placeholder="请输入用户名"
-          />
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            密码
-          </label>
-          <input
-            v-model="form.password"
-            type="password"
-            required
-            class="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-            placeholder="请输入密码"
-          />
-        </div>
-
-        <div v-if="isRegisterMode" class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              昵称
-            </label>
-            <input
-              v-model="form.nickname"
-              type="text"
-              required
-              class="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-              placeholder="请输入昵称"
-            />
+  <div class="min-h-screen relative overflow-hidden">
+    <div class="absolute inset-0 bg-gradient-to-br from-green-400 via-emerald-500 to-amber-500 opacity-60"></div>
+    <div class="absolute top-1/4 -left-32 w-96 h-96 bg-green-300 rounded-full blur-3xl opacity-40 animate-pulse"></div>
+    <div class="absolute bottom-1/4 -right-32 w-96 h-96 bg-orange-300 rounded-full blur-3xl opacity-40 animate-pulse" style="animation-delay: 1s;"></div>
+    
+    <div class="relative z-10 min-h-screen flex items-center justify-center p-4">
+      <div class="w-full max-w-md">
+        <div class="backdrop-blur-xl bg-white/80 dark:bg-slate-800/80 rounded-3xl shadow-2xl p-8 border border-white/20">
+          <div class="flex items-center justify-between mb-8">
+            <div class="flex items-center gap-2">
+              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="4"></circle>
+                  <path d="M12 2v2"></path>
+                  <path d="M12 20v2"></path>
+                  <path d="m4.93 4.93 1.41 1.41"></path>
+                  <path d="m17.66 17.66 1.41 1.41"></path>
+                  <path d="M2 12h2"></path>
+                  <path d="M20 12h2"></path>
+                  <path d="m6.34 17.66-1.41 1.41"></path>
+                  <path d="m19.07 4.93-1.41 1.41"></path>
+                </svg>
+              </div>
+            </div>
+            <button class="text-sm text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white transition-colors">
+              简体中文
+            </button>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              确认密码
-            </label>
-            <input
-              v-model="form.confirmPassword"
-              type="password"
-              required
-              class="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none transition-colors"
-              placeholder="请再次输入密码"
-            />
+
+          <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">
+              Sun-Panel
+            </h1>
+          </div>
+
+          <form @submit.prevent="handleLogin" class="space-y-5">
+            <div class="relative">
+              <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </div>
+              <input
+                v-model="form.username"
+                type="text"
+                required
+                class="w-full pl-12 pr-4 py-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white/60 dark:bg-slate-700/60 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
+                placeholder="admin@sun.cc"
+              />
+            </div>
+
+            <div class="relative">
+              <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+              </div>
+              <input
+                v-model="form.password"
+                type="password"
+                required
+                class="w-full pl-12 pr-4 py-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white/60 dark:bg-slate-700/60 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <div v-if="isRegisterMode" class="space-y-5">
+              <div class="relative">
+                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                </div>
+                <input
+                  v-model="form.nickname"
+                  type="text"
+                  required
+                  class="w-full pl-12 pr-4 py-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white/60 dark:bg-slate-700/60 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
+                  placeholder="请输入昵称"
+                />
+              </div>
+              <div class="relative">
+                <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                </div>
+                <input
+                  v-model="form.confirmPassword"
+                  type="password"
+                  required
+                  class="w-full pl-12 pr-4 py-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white/60 dark:bg-slate-700/60 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
+                  placeholder="请再次输入密码"
+                />
+              </div>
+            </div>
+
+            <div v-if="error" class="p-4 text-sm text-red-600 bg-red-50/80 dark:bg-red-900/30 rounded-xl">
+              {{ error }}
+            </div>
+
+            <button
+              type="submit"
+              :disabled="loading"
+              class="w-full py-4 text-white font-medium bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl hover:from-green-600 hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-green-500/30"
+            >
+              <span v-if="loading">请稍候...</span>
+              <span v-else>{{ isRegisterMode ? '注册' : '登录' }}</span>
+            </button>
+          </form>
+
+          <div class="mt-6 text-center">
+            <button
+              @click="isRegisterMode = !isRegisterMode"
+              class="text-sm text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 transition-colors"
+            >
+              {{ isRegisterMode ? '已有账号？去登录' : '没有账号？去注册' }}
+            </button>
+          </div>
+
+          <div class="mt-4 text-center">
+            <button
+              @click="$router.push('/')"
+              class="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 transition-colors"
+            >
+              返回首页
+            </button>
+          </div>
+
+          <div class="mt-6 text-center">
+            <p class="text-xs text-slate-400">
+              Powered By Sun-Panel
+            </p>
           </div>
         </div>
-
-        <div v-if="error" class="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-900/30 rounded-lg">
-          {{ error }}
-        </div>
-
-        <button
-          type="submit"
-          :disabled="loading"
-          class="w-full py-3 text-white font-medium bg-orange-500 rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          <span v-if="loading">请稍候...</span>
-          <span v-else>{{ isRegisterMode ? '注册' : '登录' }}</span>
-        </button>
-      </form>
-
-      <div class="mt-6 text-center">
-        <button
-          @click="isRegisterMode = !isRegisterMode"
-          class="text-sm text-orange-500 hover:text-orange-600"
-        >
-          {{ isRegisterMode ? '已有账号？去登录' : '没有账号？去注册' }}
-        </button>
-      </div>
-
-      <div class="mt-4 text-center">
-        <button
-          @click="$router.push('/')"
-          class="text-sm text-slate-500 hover:text-slate-600"
-        >
-          返回首页
-        </button>
       </div>
     </div>
   </div>
@@ -118,26 +166,47 @@ const form = reactive({
 const handleLogin = async () => {
   error.value = ''
   
+  const validatePassword = (password: string): string | null => {
+    if (password.length < 8) {
+      return '密码长度至少为8位'
+    }
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password)) {
+      return '密码需包含大小写字母、数字和特殊字符(@$!%*?&)'
+    }
+    return null
+  }
+
+  const validateUsername = (username: string): string | null => {
+    if (!/^[a-zA-Z0-9_]{3,50}$/.test(username)) {
+      return '用户名只能包含字母、数字和下划线，长度3-50位'
+    }
+    return null
+  }
+
   if (isRegisterMode.value) {
     if (form.password !== form.confirmPassword) {
       error.value = '两次输入的密码不一致'
       return
     }
-    if (form.password.length < 8) {
-      error.value = '密码长度至少为8位'
+    const passwordError = validatePassword(form.password)
+    if (passwordError) {
+      error.value = passwordError
       return
     }
-    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(form.password)) {
-      error.value = '密码需包含大小写字母、数字和特殊字符(@$!%*?&)'
-      return
-    }
-    if (!/^[a-zA-Z0-9_]{3,50}$/.test(form.username)) {
-      error.value = '用户名只能包含字母、数字和下划线，长度3-50位'
+    const usernameError = validateUsername(form.username)
+    if (usernameError) {
+      error.value = usernameError
       return
     }
   } else {
-    if (form.password.length < 6) {
-      error.value = '密码长度至少为6位'
+    const passwordError = validatePassword(form.password)
+    if (passwordError) {
+      error.value = passwordError
+      return
+    }
+    const usernameError = validateUsername(form.username)
+    if (usernameError) {
+      error.value = usernameError
       return
     }
   }
@@ -171,3 +240,18 @@ const handleLogin = async () => {
   }
 }
 </script>
+
+<style scoped>
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 3s ease-in-out infinite;
+}
+</style>

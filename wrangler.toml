@@ -8,6 +8,10 @@ binding = "SUNPANEL_DB"
 database_name = "sunpanel-db"
 database_id = "b0f2e49a-01db-41d6-8048-e168735b31e4"
 
+[[kv_namespaces]]
+binding = "IMAGES_KV"
+id = "73916ad559924540b8afcc84f0bfed9a"
+
 [vars]
 ENVIRONMENT = "production"
 

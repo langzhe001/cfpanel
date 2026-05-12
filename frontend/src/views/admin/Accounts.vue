@@ -1,37 +1,43 @@
 <template>
   <div class="space-y-6">
-    <div v-if="message" class="p-4 rounded-lg" :class="messageType === 'success' ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800'">
-      <div class="flex items-center gap-3">
-        <Icon v-if="messageType === 'success'" icon="ph:check-circle-bold" class="w-5 h-5 text-green-500" />
-        <Icon v-else icon="ph:x-circle-bold" class="w-5 h-5 text-red-500" />
-        <p :class="messageType === 'success' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">{{ message }}</p>
-      </div>
-    </div>
+    <ErrorMessage
+      v-if="error"
+      :message="error"
+      :type="messageType"
+      :closable="true"
+      @close="error = ''"
+    />
 
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
       <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
         <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">账号管理</h3>
         <button 
           @click="showAddModal = true" 
-          class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 flex items-center gap-2"
           :disabled="isLoading"
+          class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 flex items-center gap-2 transition-colors"
         >
           <Icon icon="ph:user-plus-bold" class="w-5 h-5" />
           添加账号
         </button>
       </div>
       <div class="p-6">
-        <div v-if="isLoading" class="text-center py-12">
-          <Icon icon="ph:circle-notch-bold" class="w-8 h-8 text-orange-500 animate-spin mx-auto" />
+        <div v-if="isLoading" class="py-12">
+          <LoadingSpinner text="加载用户列表..." />
         </div>
-        <div v-else-if="users.length === 0" class="text-center py-12 text-slate-500">
-          暂无账号
+        <div v-else-if="users.length === 0" class="py-12">
+          <EmptyState
+            icon="👥"
+            title="暂无账号"
+            description="点击上方按钮添加账号"
+            action-text="添加账号"
+            @action="showAddModal = true"
+          />
         </div>
         <div v-else class="space-y-3">
           <div 
             v-for="user in users" 
             :key="user.id"
-            class="flex items-center gap-4 p-4 rounded-lg bg-slate-50 dark:bg-slate-700/50"
+            class="flex items-center gap-4 p-4 rounded-lg bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           >
             <div class="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-medium">
               {{ user.nickname?.charAt(0) || user.username.charAt(0) }}
@@ -44,10 +50,14 @@
               {{ user.role === 'admin' ? '管理员' : '用户' }}
             </div>
             <div class="flex items-center gap-2">
-              <button @click="editUser(user)" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-600 rounded">
+              <button @click="editUser(user)" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors">
                 <Icon icon="ph:pencil-bold" class="w-4 h-4 text-slate-500" />
               </button>
-              <button v-if="user.id !== currentUserId" @click="deleteUser(user.id)" class="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded">
+              <button 
+                v-if="user.id !== currentUserId" 
+                @click="deleteUser(user.id)" 
+                class="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
+              >
                 <Icon icon="ph:trash-bold" class="w-4 h-4 text-red-500" />
               </button>
             </div>
@@ -56,7 +66,6 @@
       </div>
     </div>
 
-    <!-- 添加/编辑用户弹窗 -->
     <div v-if="showAddModal" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md">
         <div class="p-6 border-b border-slate-200 dark:border-slate-700">
@@ -67,31 +76,67 @@
         <form @submit.prevent="saveUser" class="p-6 space-y-4">
           <div>
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">用户名</label>
-            <input v-model="userForm.username" type="text" required :disabled="!!editingUser" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white disabled:opacity-50" />
+            <input 
+              v-model="userForm.username" 
+              type="text" 
+              required 
+              :disabled="!!editingUser"
+              class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white disabled:opacity-50 focus:ring-2 focus:ring-orange-500 outline-none"
+              placeholder="请输入用户名"
+            />
           </div>
           <div>
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">昵称</label>
-            <input v-model="userForm.nickname" type="text" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white" />
+            <input 
+              v-model="userForm.nickname" 
+              type="text" 
+              class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
+              placeholder="请输入昵称"
+            />
           </div>
           <div>
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">邮箱</label>
-            <input v-model="userForm.email" type="email" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white" />
+            <input 
+              v-model="userForm.email" 
+              type="email" 
+              class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
+              placeholder="请输入邮箱"
+            />
           </div>
           <div v-if="!editingUser">
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">密码</label>
-            <input v-model="userForm.password" type="password" required class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white" />
+            <input 
+              v-model="userForm.password" 
+              type="password" 
+              required 
+              class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
+              placeholder="请输入密码"
+            />
           </div>
           <div>
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">角色</label>
-            <select v-model="userForm.role" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white">
+            <select 
+              v-model="userForm.role" 
+              class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
+            >
               <option value="user">用户</option>
               <option value="admin">管理员</option>
             </select>
           </div>
           <div class="flex justify-end gap-3 pt-4">
-            <button type="button" @click="closeModal" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">取消</button>
-            <button type="submit" :disabled="isLoading" class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50">
-              <span v-if="isLoading" class="flex items-center gap-2">
+            <button 
+              type="button" 
+              @click="closeModal" 
+              class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            >
+              取消
+            </button>
+            <button 
+              type="submit" 
+              :disabled="isSaving"
+              class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-colors"
+            >
+              <span v-if="isSaving" class="flex items-center gap-2">
                 <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -112,17 +157,22 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/stores/auth'
 import { userApi } from '@/api'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import ErrorMessage from '@/components/ErrorMessage.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import type { User } from '@/types'
 
 const authStore = useAuthStore()
-const currentUserId = computed(() => authStore.user?.id)
 
 const users = ref<User[]>([])
 const showAddModal = ref(false)
 const editingUser = ref<User | null>(null)
 const isLoading = ref(false)
-const message = ref('')
+const isSaving = ref(false)
+const error = ref('')
 const messageType = ref<'success' | 'error'>('success')
+
+const currentUserId = computed(() => authStore.user?.id)
 
 const userForm = reactive({
   username: '',
@@ -134,12 +184,14 @@ const userForm = reactive({
 
 const fetchUsers = async () => {
   isLoading.value = true
+  error.value = ''
   try {
     const res = await userApi.getList()
     users.value = res.data || []
-  } catch (error: any) {
-    console.error('获取用户列表失败:', error)
-    showMessage(error.response?.data?.message || '获取用户列表失败', 'error')
+  } catch (err: any) {
+    error.value = err.response?.data?.message || err.message || '获取用户列表失败'
+    messageType.value = 'error'
+    users.value = []
   } finally {
     isLoading.value = false
   }
@@ -162,7 +214,9 @@ const closeModal = () => {
 }
 
 const saveUser = async () => {
-  isLoading.value = true
+  isSaving.value = true
+  error.value = ''
+  
   try {
     if (editingUser.value) {
       await userApi.update(editingUser.value.id, {
@@ -170,7 +224,8 @@ const saveUser = async () => {
         email: userForm.email || undefined,
         role: userForm.role
       })
-      showMessage('用户更新成功', 'success')
+      error.value = '用户更新成功'
+      messageType.value = 'success'
     } else {
       await userApi.create({
         username: userForm.username,
@@ -179,14 +234,19 @@ const saveUser = async () => {
         password: userForm.password,
         role: userForm.role
       })
-      showMessage('用户创建成功', 'success')
+      error.value = '用户创建成功'
+      messageType.value = 'success'
     }
     closeModal()
     await fetchUsers()
-  } catch (error: any) {
-    showMessage(error.response?.data?.message || '保存失败', 'error')
+  } catch (err: any) {
+    error.value = err.response?.data?.message || err.message || '保存失败'
+    messageType.value = 'error'
   } finally {
-    isLoading.value = false
+    isSaving.value = false
+    if (messageType.value === 'success') {
+      setTimeout(() => { error.value = '' }, 3000)
+    }
   }
 }
 
@@ -196,21 +256,16 @@ const deleteUser = async (id: string) => {
   isLoading.value = true
   try {
     await userApi.delete(id)
-    showMessage('用户删除成功', 'success')
+    error.value = '用户删除成功'
+    messageType.value = 'success'
     await fetchUsers()
-  } catch (error: any) {
-    showMessage(error.response?.data?.message || '删除失败', 'error')
+  } catch (err: any) {
+    error.value = err.response?.data?.message || err.message || '删除失败'
+    messageType.value = 'error'
   } finally {
     isLoading.value = false
+    setTimeout(() => { error.value = '' }, 3000)
   }
-}
-
-const showMessage = (msg: string, type: 'success' | 'error') => {
-  message.value = msg
-  messageType.value = type
-  setTimeout(() => {
-    message.value = ''
-  }, 3000)
 }
 
 onMounted(() => {
