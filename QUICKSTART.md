@@ -19,29 +19,28 @@ cd frontend && npm install
 ### 2. 配置 Cloudflare
 
 ```bash
-# 登录 Cloudflare
 wrangler login
-
-# 创建 D1 数据库
 wrangler d1 create sunpanel-db
+wrangler kv:namespace create IMAGES_KV
 ```
 
-将返回的 `database_id` 填入 `wrangler.toml` 文件：
+复制返回的 `database_id` 和 KV 的 `id`，更新 `wrangler.toml`：
 
 ```toml
 [[d1_databases]]
 binding = "SUNPANEL_DB"
 database_name = "sunpanel-db"
-id = "你的database_id"
+database_id = "您的 database_id"
+
+[[kv_namespaces]]
+binding = "IMAGES_KV"
+id = "您的 kv_id"
 ```
 
 ### 3. 设置环境变量
 
 ```bash
-# 设置管理员密码
 wrangler secret put ADMIN_PASSWORD
-
-# 设置允许的来源（可选，默认允许本地开发）
 wrangler secret put ALLOWED_ORIGINS
 ```
 
@@ -63,13 +62,13 @@ npm run build
 wrangler deploy
 ```
 
-## 开发
+## 开发命令
 
 ```bash
-# 前端开发
+# 前端开发服务器
 cd frontend && npm run dev
 
-# Workers 开发
+# Workers 本地预览
 npm run dev:worker
 ```
 
@@ -78,22 +77,23 @@ npm run dev:worker
 - 用户名: `admin`
 - 密码: 通过 `wrangler secret put ADMIN_PASSWORD` 设置
 
-> ⚠️ 部署后请立即登录并修改密码！
+> ⚠️ 首次登录后请及时修改密码
 
-## 功能说明
+## 功能状态
 
 | 功能 | 状态 |
 |------|------|
 | 用户认证 | ✅ |
 | 分组管理 | ✅ |
-| 项目管理 | ✅ |
+| 网站管理 | ✅ |
 | 用户设置 | ✅ |
 | 资料更新 | ✅ |
 | 密码修改 | ✅ |
 | 数据导入/导出 | ✅ |
 | 图片上传 | ✅ |
-| Docker 管理 | ❌（Cloudflare 不支持） |
+| API 接口 | ✅ |
+| 公共图库 | ✅ |
 
-## 文档
+## 文档链接
 
-更多文档请访问: https://sun-panel-doc.enianteam.com/zh_cn
+完整文档: https://sun-panel-doc.enianteam.com/zh_cn
