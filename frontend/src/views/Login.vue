@@ -226,14 +226,18 @@ const handleLogin = async () => {
         username: form.username,
         password: form.password
       })
-      authStore.setToken(res.data.token)
-      if (res.data.csrfToken) {
-        authStore.setCsrfToken(res.data.csrfToken)
-      }
+      
+      console.log('登录响应:', res)
+      console.log('设置用户信息:', res.data?.user)
+      console.log('当前Cookie:', document.cookie)
+      
       authStore.setUser(res.data.user)
-      router.push('/admin')
+      
+      console.log('跳转到前台首页...')
+      await router.push('/')
     }
   } catch (err: any) {
+    console.error('登录失败:', err)
     error.value = err.response?.data?.message || '操作失败，请重试'
   } finally {
     loading.value = false

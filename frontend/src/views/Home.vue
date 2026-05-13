@@ -9,7 +9,7 @@
       <div class="flex items-center gap-2 px-3 py-2 rounded-2xl backdrop-blur-xl bg-white/30 dark:bg-slate-900/40 border border-white/20 dark:border-slate-700/30">
         <button 
           v-if="isLoggedIn"
-          @click="goAdmin"
+          @click="openAdminModal"
           class="p-2 rounded-full hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all hover:scale-110"
           title="管理后台"
         >
@@ -99,7 +99,7 @@
         <p class="text-white/80 drop-shadow mb-6">开始添加您的第一个分组和网站吧</p>
         <button 
           v-if="isLoggedIn"
-          @click="goAdmin"
+          @click="openAdminModal"
           class="px-6 py-3 text-white bg-orange-500 rounded-full hover:bg-orange-600 transition-colors shadow-lg"
         >
           前往管理后台
@@ -165,26 +165,25 @@
       </div>
     </main>
 
-    <div 
-      v-if="activeWindow"
-      class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-      @click.self="closeWindow"
-    >
-      <div 
-        class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden"
-        :style="{ width: `${activeWindow.windowWidth || 800}px`, height: `${activeWindow.windowHeight || 600}px` }"
-      >
-        <div class="flex items-center justify-between px-4 py-3 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-          <span class="font-medium text-slate-700 dark:text-slate-300">{{ activeWindow.name }}</span>
-          <button @click="closeWindow" class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <iframe :src="activeWindow.url" class="w-full h-[calc(100%-52px)] border-0" />
+    <Modal v-model="adminModalOpen" title="SunPanel 管理后台" icon="☀️" @close="closeAdminModal">
+      <div class="w-full h-full min-h-[400px] sm:min-h-[500px] lg:min-h-[600px]">
+        <iframe 
+          :src="adminUrl" 
+          class="w-full h-full border-0 bg-slate-50 dark:bg-slate-900"
+          @load="onIframeLoad"
+        ></iframe>
       </div>
-    </div>
+    </Modal>
+
+    <Modal v-model="activeWindowModalOpen" :title="activeWindow?.name || ''" @close="closeWindow">
+      <div class="w-full h-full min-h-[400px] sm:min-h-[500px]">
+        <iframe 
+          v-if="activeWindow"
+          :src="activeWindow.url" 
+          class="w-full h-full border-0 bg-slate-50 dark:bg-slate-900"
+        ></iframe>
+      </div>
+    </Modal>
 
     <style v-if="safeCustomCSS" v-html="safeCustomCSS" />
   </div>
@@ -198,6 +197,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { useDataStore } from '@/stores/data'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import ErrorMessage from '@/components/ErrorMessage.vue'
+import Modal from '@/components/Modal.vue'
 import { sanitizeUrl, containsXss, sanitizeCSS } from '@/utils/security'
 import type { Item } from '@/types'
 
@@ -208,10 +208,13 @@ const dataStore = useDataStore()
 
 const searchQuery = ref('')
 const activeWindow = ref<Item | null>(null)
+const activeWindowModalOpen = ref(false)
 const selectedSearchEngine = ref('https://www.bing.com/search?q=')
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1280)
 const currentTime = ref('')
 const currentDate = ref('')
+const adminModalOpen = ref(false)
+const adminUrl = ref('')
 let timeInterval: number | null = null
 
 const updateTime = () => {
@@ -228,10 +231,37 @@ const updateTime = () => {
   currentDate.value = `${month}-${day} 星期${weekday}`
 }
 
+const openAdminModal = () => {
+  adminUrl.value = '/admin'
+  adminModalOpen.value = true
+}
+
+const closeAdminModal = () => {
+  adminModalOpen.value = false
+  adminUrl.value = ''
+}
+
+const onIframeLoad = () => {
+  try {
+    const iframe = document.querySelector('iframe')
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage({ type: 'closeAdminModal' }, '*')
+    }
+  } catch (e) {
+    console.log('Cannot access iframe content')
+  }
+}
+
+window.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'closeAdminModal') {
+    closeAdminModal()
+  }
+})
+
 const isLoggedIn = computed(() => {
-  if (authStore.token) return true
-  const storedToken = typeof window !== 'undefined' ? sessionStorage.getItem('token') || localStorage.getItem('token') : null
-  return !!storedToken
+  if (authStore.user) return true
+  if (authStore.isSessionValid()) return true
+  return false
 })
 const isDark = computed(() => settingsStore.settings.theme === 'dark')
 const settings = computed(() => settingsStore.settings)
@@ -354,12 +384,14 @@ const openItem = (item: Item) => {
   
   if (item.showAsWindow) {
     activeWindow.value = item
+    activeWindowModalOpen.value = true
   } else {
     window.open(safeUrl, item.openInNewTab ? '_blank' : '_self')
   }
 }
 
 const closeWindow = () => {
+  activeWindowModalOpen.value = false
   activeWindow.value = null
 }
 
@@ -375,7 +407,6 @@ const doSearch = () => {
 }
 
 const goLogin = () => router.push('/login')
-const goAdmin = () => router.push('/admin')
 
 const handleLogout = async () => {
   await authStore.logout()
@@ -397,20 +428,9 @@ const handleResize = () => {
 }
 
 onMounted(async () => {
-  if (typeof window !== 'undefined') {
-    const storedToken = sessionStorage.getItem('token') || localStorage.getItem('token')
-    const storedCsrfToken = sessionStorage.getItem('csrfToken') || localStorage.getItem('csrfToken')
-    if (storedToken && !authStore.token) {
-      authStore.setToken(storedToken)
-    }
-    if (storedCsrfToken && !authStore.csrfToken) {
-      authStore.setCsrfToken(storedCsrfToken)
-    }
-  }
-
   await settingsStore.loadSettings()
 
-  if (authStore.token) {
+  if (authStore.isSessionValid()) {
     await authStore.fetchUser()
     await dataStore.fetchAll()
   }

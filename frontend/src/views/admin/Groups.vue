@@ -114,14 +114,9 @@
       </div>
     </template>
 
-    <div v-if="showGroupModal" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md">
-        <div class="p-6 border-b border-slate-200 dark:border-slate-700">
-          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">
-            {{ editingGroup ? '编辑分组' : '添加分组' }}
-          </h3>
-        </div>
-        <form @submit.prevent="saveGroup" class="p-6 space-y-4">
+    <Modal v-model="showGroupModal" :title="editingGroup ? '编辑分组' : '添加分组'" icon="📁" size="sm" @close="closeGroupModal">
+      <div class="p-6 space-y-4">
+        <form @submit.prevent="saveGroup" class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">名称</label>
             <input 
@@ -166,16 +161,11 @@
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
 
-    <div v-if="showItemModal" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-lg">
-        <div class="p-6 border-b border-slate-200 dark:border-slate-700">
-          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">
-            {{ editingItem ? '编辑网站' : '添加网站' }}
-          </h3>
-        </div>
-        <form @submit.prevent="saveItem" class="p-6 space-y-4">
+    <Modal v-model="showItemModal" :title="editingItem ? '编辑网站' : '添加网站'" icon="🌐" size="md" @close="closeItemModal">
+      <div class="p-6 space-y-4 overflow-y-auto max-h-[70vh]">
+        <form @submit.prevent="saveItem" class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">名称</label>
             <input 
@@ -286,7 +276,7 @@
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   </div>
 </template>
 
@@ -297,6 +287,7 @@ import { useDataStore } from '@/stores/data'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import ErrorMessage from '@/components/ErrorMessage.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import Modal from '@/components/Modal.vue'
 import { sanitizeUrl, containsXss, escapeHtml } from '@/utils/security'
 import type { Group, Item } from '@/types'
 

@@ -493,32 +493,40 @@ interface Session {
 
 
 
-const RATE_LIMIT = 100
+const RATE_LIMITS = {
+  default: 100,
+  login: 5,
+  register: 3,
+  passwordChange: 3,
+  apiKey: 10
+}
 const RATE_LIMIT_WINDOW = 60 * 1000
 
-const checkRateLimit = async (ip: string, env: Env, requestId?: string): Promise<boolean> => {
+const checkRateLimit = async (ip: string, env: Env, requestId?: string, action: keyof typeof RATE_LIMITS = 'default'): Promise<boolean> => {
+  const limit = RATE_LIMITS[action] || RATE_LIMITS.default
   const now = Date.now()
   
   try {
+    const key = `${ip}:${action}`
     const existing = await env.SUNPANEL_DB.prepare(`
       SELECT count, timestamp FROM rate_limits WHERE ip = ?
-    `).bind(ip).first()
+    `).bind(key).first()
 
     if (!existing || now - existing.timestamp > RATE_LIMIT_WINDOW) {
       await env.SUNPANEL_DB.prepare(`
         INSERT OR REPLACE INTO rate_limits (ip, count, timestamp) VALUES (?, ?, ?)
-      `).bind(ip, 1, now).run()
+      `).bind(key, 1, now).run()
       return true
     }
 
-    if (existing.count >= RATE_LIMIT) {
-      log(`速率限制触发 - IP: ${ip}`, 'warn', requestId)
+    if (existing.count >= limit) {
+      log(`速率限制触发 - IP: ${ip}, Action: ${action}`, 'warn', requestId)
       return false
     }
 
     await env.SUNPANEL_DB.prepare(`
       UPDATE rate_limits SET count = count + 1, timestamp = ? WHERE ip = ?
-    `).bind(now, ip).run()
+    `).bind(now, key).run()
     return true
   } catch (error: any) {
     log(`速率限制检查失败: ${error.message}`, 'error', requestId)
@@ -964,7 +972,7 @@ const d1Settings = {
       desktopItemsPerRow: data.desktopItemsPerRow ?? existing.desktopItemsPerRow,
       showGroupNames: data.showGroupNames ?? existing.showGroupNames,
       customCSS: data.customCSS ?? existing.customCSS,
-      customJS: sanitizeJs(data.customJS ?? existing.customJS).sanitized,
+      customJS: '',
       createdAt: existing.createdAt || now
     }
 
@@ -1132,6 +1140,15 @@ export default {
 
     try {
       if (path === '/auth/login' && method === 'POST') {
+        if (!await checkRateLimit(clientIp, env, requestId, 'login')) {
+          await auditLog(env, 'RATE_LIMIT_EXCEEDED', {
+            ip: clientIp,
+            userAgent: request.headers.get('User-Agent') || undefined,
+            result: 'BLOCKED',
+            details: '登录请求过于频繁'
+          })
+          return errorResponse('登录请求过于频繁，请稍后再试', 429, corsHeaders, requestId)
+        }
         try {
           const body = await request.json()
           const validation = LoginSchema.safeParse(body)
@@ -1183,22 +1200,25 @@ export default {
             result: 'SUCCESS'
           })
 
-          const sessionCookie = `session_token=${session.id}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${7 * 24 * 60 * 60}`
-          const csrfCookie = `csrf_token=${session.csrf_token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${7 * 24 * 60 * 60}`
-
-          const headers: Record<string, string> = {
+          const headers = new Headers({
             'Content-Type': 'application/json',
             ...corsHeaders,
-            ...securityHeaders,
-            'Set-Cookie': sessionCookie
-          }
+            ...securityHeaders
+          })
+          const isSecure = request.headers.get('x-forwarded-proto') === 'https' || new URL(request.url).protocol === 'https:'
+          const sessionCookieAttributes = isSecure 
+            ? `HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${7 * 24 * 60 * 60}` 
+            : `HttpOnly; SameSite=Lax; Path=/; Max-Age=${7 * 24 * 60 * 60}`
+          const csrfCookieAttributes = isSecure 
+            ? `Secure; SameSite=Lax; Path=/; Max-Age=${7 * 24 * 60 * 60}` 
+            : `SameSite=Lax; Path=/; Max-Age=${7 * 24 * 60 * 60}`
+          headers.append('Set-Cookie', `session_token=${session.id}; ${sessionCookieAttributes}`)
+          headers.append('Set-Cookie', `csrf_token=${session.csrf_token}; ${csrfCookieAttributes}`)
 
           return new Response(JSON.stringify({
             code: 0,
             message: 'success',
             data: {
-              token: session.id,
-              csrfToken: session.csrf_token,
               user: {
                 id: String(result.id),
                 username: result.username,
@@ -1727,6 +1747,10 @@ export default {
       if (path === '/docker/containers' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) return authResult.response!
+        
+        if (authResult.session!.role !== 'admin') {
+          return errorResponse('权限不足', 403, corsHeaders, requestId)
+        }
 
         return jsonResponse([], 200, corsHeaders, requestId)
       }
@@ -1980,7 +2004,9 @@ export default {
           UPDATE users SET password = ?, updated_at = ? WHERE id = ?
         `).bind(newPasswordHash, new Date().toISOString(), userId).run()
 
-        await d1Sessions.delete(env, authResult.session!.id)
+        await env.SUNPANEL_DB.prepare(`
+          DELETE FROM sessions WHERE user_id = ?
+        `).bind(userId).run()
 
         return jsonResponse({ success: true, message: '密码修改成功，请重新登录' }, 200, corsHeaders, requestId)
       }
@@ -2060,6 +2086,15 @@ export default {
       }
 
       if (path === '/auth/register' && method === 'POST') {
+        if (!await checkRateLimit(clientIp, env, requestId, 'register')) {
+          await auditLog(env, 'RATE_LIMIT_EXCEEDED', {
+            ip: clientIp,
+            userAgent: request.headers.get('User-Agent') || undefined,
+            result: 'BLOCKED',
+            details: '注册请求过于频繁'
+          })
+          return errorResponse('注册请求过于频繁，请稍后再试', 429, corsHeaders, requestId)
+        }
         try {
           const body = await request.json()
           const validation = RegisterSchema.safeParse(body)
@@ -2150,6 +2185,10 @@ export default {
       if (path.match(/^\/docker\/containers\/[^/]+\/start$/) && method === 'POST') {
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) return authResult.response!
+        
+        if (authResult.session!.role !== 'admin') {
+          return errorResponse('权限不足', 403, corsHeaders, requestId)
+        }
 
         return errorResponse('Docker 功能暂未开放', 501, corsHeaders, requestId)
       }
@@ -2157,6 +2196,10 @@ export default {
       if (path.match(/^\/docker\/containers\/[^/]+\/stop$/) && method === 'POST') {
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) return authResult.response!
+        
+        if (authResult.session!.role !== 'admin') {
+          return errorResponse('权限不足', 403, corsHeaders, requestId)
+        }
 
         return errorResponse('Docker 功能暂未开放', 501, corsHeaders, requestId)
       }
@@ -2164,6 +2207,10 @@ export default {
       if (path.match(/^\/docker\/containers\/[^/]+\/restart$/) && method === 'POST') {
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) return authResult.response!
+        
+        if (authResult.session!.role !== 'admin') {
+          return errorResponse('权限不足', 403, corsHeaders, requestId)
+        }
 
         return errorResponse('Docker 功能暂未开放', 501, corsHeaders, requestId)
       }

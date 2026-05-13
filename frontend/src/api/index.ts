@@ -1,28 +1,14 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios'
 import type { APIResponse, LoginRequest, LoginResponse, User, Group, Item, Settings } from '@/types'
 
-// ============ 安全常量配置 ============
 export const SECURITY_CONFIG = {
-  // 缓存配置
-  CACHE_TTL: 5 * 60 * 1000, // 5分钟
-  
-  // 重试配置
+  CACHE_TTL: 5 * 60 * 1000,
   MAX_RETRIES: 3,
   INITIAL_RETRY_DELAY: 1000,
-  
-  // 文件上传配置
-  MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
+  MAX_FILE_SIZE: 5 * 1024 * 1024,
   ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
   MAX_FILENAME_LENGTH: 255,
-  
-  // 请求超时
-  REQUEST_TIMEOUT: 15000,
-  
-  // 会话配置
-  SESSION_KEYS: {
-    TOKEN: 'token',
-    CSRF_TOKEN: 'csrfToken'
-  }
+  REQUEST_TIMEOUT: 15000
 } as const
 
 interface ErrorHandler {
@@ -36,44 +22,13 @@ export const setErrorHandler = (handler: ErrorHandler) => {
   errorHandler = handler
 }
 
-// ============ 安全工具函数 ============
 const isBrowser = typeof window !== 'undefined'
 
-const getSecureStorage = () => {
-  try {
-    // 使用 localStorage 支持跨标签页共享
-    return localStorage
-  } catch {
-    console.error('localStorage not available')
-    throw new Error('Storage unavailable')
-  }
-}
-
-const secureGetItem = (key: string): string | null => {
-  if (!isBrowser) return null
-  try {
-    return getSecureStorage().getItem(key)
-  } catch {
-    return null
-  }
-}
-
-const secureSetItem = (key: string, value: string): void => {
-  if (!isBrowser) return
-  try {
-    getSecureStorage().setItem(key, value)
-  } catch {
-    console.error('Failed to save to secure storage')
-  }
-}
-
-const secureRemoveItem = (key: string): void => {
-  if (!isBrowser) return
-  try {
-    getSecureStorage().removeItem(key)
-  } catch {
-    console.error('Failed to remove from secure storage')
-  }
+const getCookie = (name: string): string | null => {
+  if (typeof window === 'undefined') return null
+  const cookies = document.cookie.split('; ')
+  const cookie = cookies.find(c => c.startsWith(`${name}=`))
+  return cookie ? cookie.substring(name.length + 1) : null
 }
 
 const showErrorToast = (message: string) => {
@@ -90,7 +45,6 @@ const showSuccessToast = (message: string) => {
   }
 }
 
-// ============ API 客户端创建 ============
 const createApiClient = (baseURL: string = '/api'): AxiosInstance => {
   const client = axios.create({
     baseURL,
@@ -102,17 +56,10 @@ const createApiClient = (baseURL: string = '/api'): AxiosInstance => {
   })
 
   client.interceptors.request.use((config) => {
-    // 从安全存储获取 token
-    const token = secureGetItem(SECURITY_CONFIG.SESSION_KEYS.TOKEN)
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    
-    const csrfToken = secureGetItem(SECURITY_CONFIG.SESSION_KEYS.CSRF_TOKEN)
-    if (csrfToken && config.method !== 'get') {
+    const csrfToken = getCookie('csrf_token')
+    if (csrfToken && config.method && config.method.toLowerCase() !== 'get') {
       config.headers['X-CSRF-Token'] = csrfToken
     }
-    
     return config
   })
 
@@ -126,27 +73,22 @@ const createApiClient = (baseURL: string = '/api'): AxiosInstance => {
         }
         return Promise.reject(new Error('登录已过期，请重新登录'))
       }
-      
       if (error.response?.status === 403) {
         showErrorToast(error.response?.data?.message || '权限不足')
         return Promise.reject(error)
       }
-      
       if (error.response?.status >= 500) {
         showErrorToast('服务器错误，请稍后重试')
         return Promise.reject(error)
       }
-      
       if (error.code === 'ECONNABORTED') {
         showErrorToast('请求超时，请检查网络连接')
         return Promise.reject(error)
       }
-      
       if (!error.response) {
         showErrorToast('网络错误，请检查网络连接')
         return Promise.reject(error)
       }
-      
       return Promise.reject(error)
     }
   )
@@ -156,14 +98,12 @@ const createApiClient = (baseURL: string = '/api'): AxiosInstance => {
 
 const api = createApiClient()
 
-// ============ 重试机制 ============
 const retryWithExponentialBackoff = async <T>(
   fn: () => Promise<T>,
   maxRetries: number = SECURITY_CONFIG.MAX_RETRIES,
   initialDelay: number = SECURITY_CONFIG.INITIAL_RETRY_DELAY
 ): Promise<T> => {
   let delay = initialDelay
-  
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await fn()
@@ -171,28 +111,25 @@ const retryWithExponentialBackoff = async <T>(
       if (attempt >= maxRetries) {
         throw error
       }
-      
-      const shouldRetry = 
-        error.code === 'ECONNABORTED' || 
-        !error.response || 
+      const shouldRetry =
+        error.code === 'ECONNABORTED' ||
+        !error.response ||
         error.response.status >= 500
-      
       if (!shouldRetry) {
         throw error
       }
-      
       await new Promise(resolve => setTimeout(resolve, delay))
       delay *= 2
     }
   }
-  
   throw new Error('Max retries exceeded')
 }
 
-// ============ 认证清理 ============
 const clearAllAuth = () => {
-  secureRemoveItem(SECURITY_CONFIG.SESSION_KEYS.TOKEN)
-  secureRemoveItem(SECURITY_CONFIG.SESSION_KEYS.CSRF_TOKEN)
+  if (typeof window !== 'undefined') {
+    document.cookie = 'session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+    document.cookie = 'csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+  }
   clearCache()
 }
 
@@ -203,25 +140,21 @@ export const clearAuthAndRedirect = () => {
   }
 }
 
-// ============ 缓存管理 ============
 interface CacheEntry<T> {
   data: T
   timestamp: number
 }
 
 const MEMORY_CACHE_KEY = '__sunpanel_cache'
-
 const cache = new Map<string, CacheEntry<any>>()
 
 const loadFromLocalStorage = (): void => {
   if (!isBrowser) return
-  
   try {
     const stored = localStorage.getItem(MEMORY_CACHE_KEY)
     if (stored) {
       const parsed = JSON.parse(stored) as Record<string, CacheEntry<any>>
       const now = Date.now()
-      
       for (const [key, entry] of Object.entries(parsed)) {
         if (now - entry.timestamp <= SECURITY_CONFIG.CACHE_TTL) {
           cache.set(key, entry)
@@ -235,7 +168,6 @@ const loadFromLocalStorage = (): void => {
 
 const saveToLocalStorage = (): void => {
   if (!isBrowser) return
-  
   try {
     const cacheObj: Record<string, CacheEntry<any>> = {}
     cache.forEach((value, key) => {
@@ -280,44 +212,34 @@ export const cacheApi = {
   clear: clearCache
 }
 
-// ============ 文件验证函数 ============
 export const validateFileUpload = (file: File): { valid: boolean; error?: string } => {
-  // 验证文件大小
   if (file.size > SECURITY_CONFIG.MAX_FILE_SIZE) {
     return {
       valid: false,
       error: `文件大小不能超过 ${SECURITY_CONFIG.MAX_FILE_SIZE / (1024 * 1024)}MB`
     }
   }
-  
-  // 验证文件类型
   if (!SECURITY_CONFIG.ALLOWED_IMAGE_TYPES.includes(file.type)) {
     return {
       valid: false,
       error: `只支持以下文件类型: ${SECURITY_CONFIG.ALLOWED_IMAGE_TYPES.join(', ')}`
     }
   }
-  
-  // 验证文件名长度
   if (file.name.length > SECURITY_CONFIG.MAX_FILENAME_LENGTH) {
     return {
       valid: false,
       error: `文件名长度不能超过 ${SECURITY_CONFIG.MAX_FILENAME_LENGTH} 个字符`
     }
   }
-  
-  // 验证文件名安全性（防止路径遍历攻击）
   if (file.name.includes('..') || file.name.includes('/') || file.name.includes('\\')) {
     return {
       valid: false,
       error: '文件名包含非法字符'
     }
   }
-  
   return { valid: true }
 }
 
-// ============ API 端点定义 ============
 export const authApi = {
   login: (data: LoginRequest) => api.post<APIResponse<LoginResponse>>('/auth/login', data),
   logout: () => {
@@ -340,12 +262,12 @@ export const userApi = {
     clearCache('user_profile')
     return api.put('/users/profile', data)
   },
-  changePassword: (oldPassword: string, newPassword: string) => 
+  changePassword: (oldPassword: string, newPassword: string) =>
     api.post('/users/change-password', { oldPassword, newPassword }),
   getList: () => api.get<APIResponse<User[]>>('/users'),
-  create: (data: { username: string; nickname?: string; email?: string; password: string; role?: string }) => 
+  create: (data: { username: string; nickname?: string; email?: string; password: string; role?: string }) =>
     api.post('/users', data),
-  update: (id: string, data: { nickname?: string; email?: string; role?: string }) => 
+  update: (id: string, data: { nickname?: string; email?: string; role?: string }) =>
     api.put(`/users/${id}`, data),
   delete: (id: string) => api.delete(`/users/${id}`),
   uploadAvatar: (file: File) => {
@@ -353,7 +275,6 @@ export const userApi = {
     if (!validation.valid) {
       return Promise.reject(new Error(validation.error))
     }
-    
     clearCache('user_profile')
     const formData = new FormData()
     formData.append('file', file)
@@ -394,7 +315,7 @@ export const itemApi = {
     const cacheKey = groupId ? `items_${groupId}` : 'items_all'
     const cached = getCached<APIResponse<Item[]>>(cacheKey)
     if (cached) return cached
-    const res = await retryWithExponentialBackoff(() => 
+    const res = await retryWithExponentialBackoff(() =>
       api.get<APIResponse<Item[]>>('/items', { params: { groupId } })
     )
     setCached(cacheKey, res)
@@ -450,7 +371,6 @@ export const galleryApi = {
     if (!validation.valid) {
       return Promise.reject(new Error(validation.error))
     }
-    
     clearCache('gallery_user')
     const formData = new FormData()
     formData.append('file', file)
@@ -467,15 +387,12 @@ export const galleryApi = {
 export const exportImportApi = {
   exportData: () => api.get('/export', { responseType: 'blob' }),
   importData: (file: File) => {
-    // 验证导入文件
     if (!file.name.endsWith('.json')) {
       return Promise.reject(new Error('只支持 JSON 格式的导入文件'))
     }
-    
     if (file.size > SECURITY_CONFIG.MAX_FILE_SIZE) {
       return Promise.reject(new Error(`导入文件大小不能超过 ${SECURITY_CONFIG.MAX_FILE_SIZE / (1024 * 1024)}MB`))
     }
-    
     clearCache()
     const formData = new FormData()
     formData.append('file', file)

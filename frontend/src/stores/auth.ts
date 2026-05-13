@@ -1,120 +1,95 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { User } from '@/types'
-import { userApi, authApi, SECURITY_CONFIG } from '@/api'
+import { userApi, authApi } from '@/api'
 
-// 安全存储工具函数
 const isBrowser = typeof window !== 'undefined'
-
-const getSecureStorage = () => {
-  try {
-    // 使用 localStorage 支持跨标签页共享
-    return localStorage
-  } catch {
-    console.error('localStorage not available')
-    throw new Error('Storage unavailable')
-  }
-}
-
-const secureGetItem = (key: string): string | null => {
-  if (!isBrowser) return null
-  try {
-    return getSecureStorage().getItem(key)
-  } catch {
-    return null
-  }
-}
-
-const secureSetItem = (key: string, value: string): void => {
-  if (!isBrowser) return
-  try {
-    getSecureStorage().setItem(key, value)
-  } catch {
-    console.error('Failed to save to secure storage')
-  }
-}
-
-const secureRemoveItem = (key: string): void => {
-  if (!isBrowser) return
-  try {
-    getSecureStorage().removeItem(key)
-  } catch {
-    console.error('Failed to remove from secure storage')
-  }
-}
+const SESSION_KEY = 'sunpanel_session'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
-  const token = ref<string | null>(secureGetItem(SECURITY_CONFIG.SESSION_KEYS.TOKEN))
-  const csrfToken = ref<string | null>(secureGetItem(SECURITY_CONFIG.SESSION_KEYS.CSRF_TOKEN))
   const sessionExpiresAt = ref<number | null>(null)
 
-  const setToken = (newToken: string) => {
-    token.value = newToken
-    secureSetItem(SECURITY_CONFIG.SESSION_KEYS.TOKEN, newToken)
-    sessionExpiresAt.value = Date.now() + 7 * 24 * 60 * 60 * 1000 // 7天过期
+  const loadSession = () => {
+    if (!isBrowser) return
+    try {
+      const stored = localStorage.getItem(SESSION_KEY)
+      if (stored) {
+        const data = JSON.parse(stored)
+        if (data.expiresAt && Date.now() < data.expiresAt) {
+          sessionExpiresAt.value = data.expiresAt
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load session from storage')
+    }
   }
 
-  const setCsrfToken = (newCsrfToken: string) => {
-    csrfToken.value = newCsrfToken
-    secureSetItem(SECURITY_CONFIG.SESSION_KEYS.CSRF_TOKEN, newCsrfToken)
+  const saveSession = () => {
+    if (!isBrowser) return
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify({
+        expiresAt: sessionExpiresAt.value
+      }))
+    } catch (e) {
+      console.warn('Failed to save session to storage')
+    }
+  }
+
+  const clearSession = () => {
+    if (!isBrowser) return
+    try {
+      localStorage.removeItem(SESSION_KEY)
+    } catch (e) {
+      console.warn('Failed to clear session from storage')
+    }
   }
 
   const setUser = (newUser: User) => {
     user.value = newUser
+    sessionExpiresAt.value = Date.now() + 7 * 24 * 60 * 60 * 1000
+    saveSession()
   }
 
   const logout = async () => {
     try {
-      if (token.value) {
-        await authApi.logout()
-      }
+      await authApi.logout()
     } catch (e) {
-      // 即使失败也要继续清理本地状态
       console.warn('Logout API call failed, but cleaning up locally')
     }
     
-    token.value = null
-    csrfToken.value = null
     user.value = null
     sessionExpiresAt.value = null
-    
-    // 清理所有认证相关数据
-    secureRemoveItem(SECURITY_CONFIG.SESSION_KEYS.TOKEN)
-    secureRemoveItem(SECURITY_CONFIG.SESSION_KEYS.CSRF_TOKEN)
-    
-    // 清理 cookie
-    if (isBrowser) {
-      document.cookie = 'session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-      document.cookie = 'csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-    }
+    clearSession()
   }
 
   const isSessionValid = (): boolean => {
-    if (!token.value) return false
-    if (!sessionExpiresAt.value) return true
+    if (!sessionExpiresAt.value) return false
     return Date.now() < sessionExpiresAt.value
   }
 
   const fetchUser = async () => {
-    if (!token.value) return null
     try {
       const res = await userApi.getProfile()
       user.value = res.data
+      sessionExpiresAt.value = Date.now() + 7 * 24 * 60 * 60 * 1000
+      saveSession()
       return user.value
     } catch (err) {
       console.warn('Failed to fetch user profile:', err)
+      user.value = null
+      sessionExpiresAt.value = null
+      clearSession()
       return null
     }
   }
 
+  // 初始化时加载会话
+  loadSession()
+
   return {
     user,
-    token,
-    csrfToken,
     sessionExpiresAt,
-    setToken,
-    setCsrfToken,
     setUser,
     logout,
     fetchUser,

@@ -100,15 +100,24 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
   
-  if (to.meta.requiresAuth && !authStore.token) {
+  console.log('路由守卫:', { from: from.path, to: to.path })
+  console.log('会话有效:', authStore.isSessionValid())
+  console.log('用户信息:', authStore.user)
+  console.log('Cookie:', document.cookie)
+  
+  if (to.meta.requiresAuth && !authStore.isSessionValid()) {
+    console.log('会话无效，跳转到登录页')
     next('/login')
     return
   }
   
-  if (to.meta.requiresAuth && authStore.token && !authStore.user) {
+  if (to.meta.requiresAuth && !authStore.user) {
+    console.log('没有用户信息，尝试获取...')
     try {
       await authStore.fetchUser()
+      console.log('用户信息获取成功:', authStore.user)
     } catch {
+      console.error('获取用户信息失败')
       await authStore.logout()
       next('/login')
       return

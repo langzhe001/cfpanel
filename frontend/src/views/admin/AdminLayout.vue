@@ -7,10 +7,10 @@
     >
       <!-- Logo -->
       <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-        <router-link to="/" class="flex items-center gap-2 text-xl font-bold text-orange-500">
+        <div class="flex items-center gap-2 text-xl font-bold text-orange-500">
           <span>☀️</span>
           <span>SunPanel</span>
-        </router-link>
+        </div>
         <button 
           @click="sidebarOpen = false"
           class="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
@@ -78,7 +78,7 @@
     <!-- 主内容区 -->
     <div class="flex-1 flex flex-col min-w-0 lg:ml-64">
       <!-- 顶部栏 -->
-      <header class="h-14 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 lg:px-6">
+      <header class="h-14 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 lg:px-6 flex-shrink-0">
         <div class="flex items-center gap-4">
           <button 
             @click="sidebarOpen = true"
@@ -91,9 +91,16 @@
           </h1>
         </div>
         <div class="flex items-center gap-4">
-          <a href="/" target="_blank" class="hidden sm:block text-sm text-slate-500 hover:text-orange-500">
-            查看前台 →
-          </a>
+          <button
+            v-if="isInModal"
+            @click="confirmClose"
+            class="hidden sm:flex items-center gap-2 text-sm text-slate-500 hover:text-orange-500"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            关闭
+          </button>
           <button
             @click="toggleTheme"
             class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
@@ -104,20 +111,36 @@
         </div>
       </header>
 
-      <!-- 页面内容 -->
-      <main class="flex-1 p-4 lg:p-6 overflow-y-auto">
-        <router-view />
+      <!-- 页面内容 - 支持平滑滚动 -->
+      <main class="flex-1 overflow-y-auto p-4 lg:p-6" style="scroll-behavior: smooth;">
+        <router-view v-slot="{ Component }">
+          <transition name="page-fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </main>
     </div>
+
+    <!-- 关闭确认对话框 -->
+    <ConfirmDialog
+      v-model="showCloseConfirm"
+      title="确认关闭"
+      message="确定要关闭管理后台吗？所有未保存的更改将丢失。"
+      confirm-text="确定关闭"
+      cancel-text="取消"
+      type="warning"
+      @confirm="executeClose"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -126,6 +149,31 @@ const settingsStore = useSettingsStore()
 
 const sidebarOpen = ref(false)
 const isDark = computed(() => settingsStore.settings.theme === 'dark')
+const isInModal = ref(false)
+const showCloseConfirm = ref(false)
+
+onMounted(() => {
+  try {
+    if (window.self !== window.top) {
+      isInModal.value = true
+    }
+  } catch (e) {
+    isInModal.value = false
+  }
+})
+
+const confirmClose = () => {
+  showCloseConfirm.value = true
+}
+
+const executeClose = () => {
+  showCloseConfirm.value = false
+  try {
+    window.parent.postMessage({ type: 'closeAdminModal' }, '*')
+  } catch (e) {
+    console.log('Cannot access parent window')
+  }
+}
 
 const userMenuItems = [
   { path: '/admin/dashboard', label: '仪表盘', icon: 'ph:chart-pie-bold' },
@@ -141,7 +189,6 @@ const adminMenuItems = computed(() => {
     { path: '/admin/api', label: 'API / Open API', icon: 'ph:code-bold' },
   ]
   
-  // 只有管理员才显示账号管理等功能
   if (authStore.user?.role === 'admin') {
     items.push({ path: '/admin/accounts', label: '账号管理', icon: 'ph:users-bold' })
     items.push({ path: '/admin/public-gallery', label: '公共图库', icon: 'ph:images-bold' })
@@ -173,6 +220,10 @@ const toggleTheme = () => {
   const newTheme = settingsStore.settings.theme === 'dark' ? 'light' : 'dark'
   settingsStore.updateSettings({ theme: newTheme })
 }
+
+const goHome = () => {
+  router.push('/')
+}
 </script>
 
 <style scoped>
@@ -182,5 +233,20 @@ const toggleTheme = () => {
 
 .menu-item.active {
   @apply bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400;
+}
+
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.page-fade-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 </style>
