@@ -200,16 +200,7 @@
               placeholder="/* 在此处添加自定义样式 */"
               class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-orange-500 outline-none"
             />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">自定义 JavaScript</label>
-            <textarea
-              v-model="customJS"
-              @change="updateSetting('customJS', customJS)"
-              rows="6"
-              placeholder="// 在此处添加自定义脚本"
-              class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-orange-500 outline-none"
-            />
+            <p class="text-xs text-slate-500 mt-2">注意：自定义 CSS 会经过安全过滤以防止注入攻击。</p>
           </div>
         </div>
       </div>
@@ -280,7 +271,6 @@ const themes = [
 ]
 
 const customCSS = ref('')
-const customJS = ref('')
 
 const showGalleryModal = ref(false)
 const galleryImages = ref<any[]>([])
@@ -328,7 +318,6 @@ onMounted(async () => {
   try {
     await settingsStore.loadSettings()
     customCSS.value = settings.value.customCSS || ''
-    customJS.value = settings.value.customJS || ''
   } catch (err: any) {
     error.value = '加载设置失败，使用默认值'
   } finally {

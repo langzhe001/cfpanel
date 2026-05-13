@@ -1026,24 +1026,41 @@ export default {
         log(`请求图片: ${filename}`, 'info', requestId)
         
         try {
+          // 先查询图片信息并验证权限
+          const imageInfo = await env.SUNPANEL_DB.prepare(`
+            SELECT user_id, is_public, content_type FROM images WHERE filename = ?
+          `).bind(filename).first()
+
+          if (!imageInfo) {
+            log(`图片不存在: ${filename}`, 'warn', requestId)
+            return new Response('图片不存在', { status: 404 })
+          }
+
+          // 验证权限
+          if (!imageInfo.is_public) {
+            const authResult = await authenticate(request, env, corsHeaders)
+            if (!authResult.success) {
+              log(`未认证访问私有图片: ${filename}`, 'warn', requestId)
+              return authResult.response!
+            }
+            if (imageInfo.user_id !== authResult.session!.user_id) {
+              log(`越权访问图片: ${filename}`, 'warn', requestId)
+              return errorResponse('无权访问此图片', 403, corsHeaders, requestId)
+            }
+          }
+
           // 首先尝试从 KV 读取图片
           const kvData = await env.IMAGES_KV.get(filename, 'arrayBuffer')
           
           if (kvData) {
             log(`从 KV 读取图片成功`, 'info', requestId)
-            
-            // 从 D1 读取 content_type
-            const dbResult = await env.SUNPANEL_DB.prepare(`
-              SELECT content_type FROM images WHERE filename = ?
-            `).bind(filename).first()
-            
-            const contentType = dbResult?.content_type || 'application/octet-stream'
+            const contentType = imageInfo.content_type || 'application/octet-stream'
             
             return new Response(kvData, {
               status: 200,
               headers: {
                 'Content-Type': contentType,
-                'Cache-Control': 'public, max-age=31536000'
+                'Cache-Control': imageInfo.is_public ? 'public, max-age=31536000' : 'private, max-age=3600'
               }
             })
           }
@@ -1053,41 +1070,33 @@ export default {
             SELECT content_type, data FROM images WHERE filename = ?
           `).bind(filename).first()
 
-          if (!result) {
-            log(`图片不存在: ${filename}`, 'warn', requestId)
-            return new Response('图片不存在', { status: 404 })
+          if (!result || !result.data) {
+            log('图片数据为空', 'error', requestId)
+            return new Response('图片数据为空', { status: 500 })
           }
 
           log(`找到图片, content_type: ${result.content_type}`, 'info', requestId)
 
           const base64Data = result.data as string
-          if (!base64Data || base64Data.length === 0) {
-            log('图片数据为空', 'error', requestId)
-            return new Response('图片数据为空', { status: 500 })
-          }
-
           const binaryStr = atob(base64Data)
           const len = binaryStr.length
-          log(`解码后长度: ${len}`, 'info', requestId)
           
           const bytes = new Uint8Array(len)
           for (let i = 0; i < len; i++) {
             bytes[i] = binaryStr.charCodeAt(i)
           }
           
-          log(`准备返回图片, Content-Type: ${result.content_type}, 长度: ${len}`, 'info', requestId)
-          
           return new Response(bytes, {
             status: 200,
             headers: {
               'Content-Type': result.content_type as string,
               'Content-Length': len.toString(),
-              'Cache-Control': 'public, max-age=31536000'
+              'Cache-Control': imageInfo.is_public ? 'public, max-age=31536000' : 'private, max-age=3600'
             }
           })
         } catch (error: any) {
           log(`图片处理失败: ${error.message}`, 'error', requestId)
-          return new Response('图片处理失败: ' + error.message, { status: 500 })
+          return new Response('图片处理失败', { status: 500 })
         }
       }
 
@@ -1560,13 +1569,9 @@ export default {
 
       if (path === '/settings' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
+        if (!authResult.success) return authResult.response!
         
-        let settings
-        if (authResult.success) {
-          settings = await d1Settings.get(env, authResult.session!.user_id)
-        } else {
-          settings = await d1Settings.get(env, 1)
-        }
+        const settings = await d1Settings.get(env, authResult.session!.user_id)
 
         return jsonResponse({
           theme: settings.theme,
@@ -1580,8 +1585,7 @@ export default {
           tabletItemsPerRow: settings.tabletItemsPerRow || 3,
           desktopItemsPerRow: settings.desktopItemsPerRow || 6,
           showGroupNames: settings.showGroupNames === 1,
-          customCSS: settings.customCSS,
-          customJS: settings.customJS
+          customCSS: settings.customCSS
         }, 200, corsHeaders, requestId)
       }
 
@@ -1626,8 +1630,7 @@ export default {
           tabletItemsPerRow: updated.tabletItemsPerRow || 3,
           desktopItemsPerRow: updated.desktopItemsPerRow || 6,
           showGroupNames: updated.showGroupNames === 1,
-          customCSS: updated.customCSS,
-          customJS: updated.customJS
+          customCSS: updated.customCSS
         }, 200, corsHeaders, requestId)
       }
 
@@ -1675,8 +1678,7 @@ export default {
             searchEngine: settings.searchEngine,
             itemsPerRow: settings.itemsPerRow,
             showGroupNames: settings.showGroupNames === 1,
-            customCSS: settings.customCSS,
-            customJS: settings.customJS
+            customCSS: settings.customCSS
           }
         }, 200, corsHeaders, requestId)
       }
@@ -1736,8 +1738,7 @@ export default {
             searchEngine: validData.settings.searchEngine,
             itemsPerRow: validData.settings.itemsPerRow,
             showGroupNames: validData.settings.showGroupNames ? 1 : 0,
-            customCSS: validData.settings.customCSS,
-            customJS: validData.settings.customJS
+            customCSS: validData.settings.customCSS
           }, userId)
         }
 
