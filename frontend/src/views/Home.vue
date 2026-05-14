@@ -11,7 +11,7 @@
           v-if="isLoggedIn"
           @click="openAdminModal"
           class="p-2 rounded-full hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all hover:scale-110"
-          title="管理后台"
+          :title="navTexts.admin || '管理后台'"
         >
           <svg class="w-5 h-5 text-slate-700 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
@@ -34,7 +34,7 @@
           v-if="isLoggedIn"
           @click="handleLogout"
           class="p-2 rounded-full hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all hover:scale-110"
-          title="退出登录"
+          :title="navTexts.logout || '退出登录'"
         >
           <svg class="w-5 h-5 text-slate-700 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
@@ -95,14 +95,14 @@
 
       <div v-else-if="!isLoggedIn || groups.length === 0" class="flex flex-col items-center justify-center py-20">
         <div class="text-6xl mb-4">🌞</div>
-        <h2 class="text-2xl font-bold text-white drop-shadow-lg mb-2">欢迎使用 SunPanel</h2>
+        <h2 class="text-2xl font-bold text-white drop-shadow-lg mb-2">{{ homeTexts.welcome || '欢迎使用 SunPanel' }}</h2>
         <p class="text-white/80 drop-shadow mb-6">开始添加您的第一个分组和网站吧</p>
         <button 
           v-if="isLoggedIn"
           @click="openAdminModal"
           class="px-6 py-3 text-white bg-orange-500 rounded-full hover:bg-orange-600 transition-colors shadow-lg"
         >
-          前往管理后台
+          {{ navTexts.admin || '前往管理后台' }}
         </button>
         <button 
           v-else
@@ -165,7 +165,7 @@
       </div>
     </main>
 
-    <Modal v-model="adminModalOpen" title="SunPanel 管理后台" icon="☀️" @close="closeAdminModal">
+    <Modal v-model="adminModalOpen" :title="globalSettingsStore.websiteTitle + ' 管理后台'" icon="☀️" @close="closeAdminModal">
       <div class="w-full h-full min-h-[400px] sm:min-h-[500px] lg:min-h-[600px]">
         <iframe 
           :src="adminUrl" 
@@ -192,9 +192,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
+import { useAuthStore } from '@/stores/auth'
 import { useDataStore } from '@/stores/data'
+import { useGlobalSettingsStore } from '@/stores/globalSettings'
+import { usePageTexts } from '@/composables/useI18n'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import ErrorMessage from '@/components/ErrorMessage.vue'
 import Modal from '@/components/Modal.vue'
@@ -202,9 +204,11 @@ import { sanitizeUrl, containsXss, sanitizeCSS } from '@/utils/security'
 import type { Item } from '@/types'
 
 const router = useRouter()
-const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
+const authStore = useAuthStore()
 const dataStore = useDataStore()
+const globalSettingsStore = useGlobalSettingsStore()
+const { home: homeTexts, nav: navTexts } = usePageTexts()
 
 const searchQuery = ref('')
 const activeWindow = ref<Item | null>(null)

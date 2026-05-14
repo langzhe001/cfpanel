@@ -5,6 +5,7 @@ export interface User {
   role: 'admin' | 'user'
   avatar?: string
   email?: string
+  language?: string
   createdAt?: string
   updatedAt?: string
 }
@@ -52,6 +53,22 @@ export interface Settings {
   showGroupNames: boolean
   customCSS: string
   customJS: string
+}
+
+export interface GlobalSettings {
+  language: string
+  websiteTitle: string
+  websiteDescription: string
+  pageTexts: Record<string, Record<string, string>>
+  footerText: string
+}
+
+export interface PageTexts {
+  home?: { title?: string; welcome?: string }
+  nav?: { home?: string; admin?: string; login?: string; logout?: string }
+  admin?: { dashboard?: string; settings?: string; users?: string; groups?: string; items?: string; personalization?: string }
+  login?: { title?: string; username?: string; password?: string; submit?: string; register?: string; forgot?: string }
+  settings?: { title?: string; theme?: string; language?: string; save?: string; reset?: string }
 }
 
 export interface DockerContainer {

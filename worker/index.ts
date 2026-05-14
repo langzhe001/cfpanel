@@ -698,6 +698,17 @@ interface Settings {
   createdAt?: string
 }
 
+interface GlobalSettings {
+  id: number
+  language: string
+  websiteTitle: string
+  websiteDescription: string
+  pageTexts: Record<string, any>
+  footerText: string
+  createdAt: string
+  updatedAt: string
+}
+
 const d1Groups = {
   getAll: async (env: Env, userId: number = 1): Promise<Group[]> => {
     const result = await env.SUNPANEL_DB.prepare(`
@@ -1002,6 +1013,122 @@ const d1Settings = {
     ).run()
 
     return merged
+  }
+}
+
+const d1GlobalSettings = {
+  get: async (env: Env, language: string = 'zh-CN'): Promise<GlobalSettings | null> => {
+    const result = await env.SUNPANEL_DB.prepare(`
+      SELECT id, language, website_title, website_description, page_texts, footer_text, created_at, updated_at
+      FROM global_settings WHERE language = ?
+    `).bind(language).first()
+
+    if (!result) {
+      const fallback = await env.SUNPANEL_DB.prepare(`
+        SELECT id, language, website_title, website_description, page_texts, footer_text, created_at, updated_at
+        FROM global_settings WHERE language = 'zh-CN'
+      `).first()
+
+      if (!fallback) return null
+
+      return {
+        id: fallback.id as number,
+        language: fallback.language as string,
+        websiteTitle: fallback.website_title as string,
+        websiteDescription: (fallback as any).website_description as string || '',
+        pageTexts: JSON.parse((fallback as any).page_texts as string || '{}'),
+        footerText: (fallback as any).footer_text as string || '',
+        createdAt: fallback.created_at as string,
+        updatedAt: fallback.updated_at as string
+      }
+    }
+
+    return {
+      id: result.id as number,
+      language: result.language as string,
+      websiteTitle: result.website_title as string,
+      websiteDescription: (result as any).website_description as string || '',
+      pageTexts: JSON.parse((result as any).page_texts as string || '{}'),
+      footerText: (result as any).footer_text as string || '',
+      createdAt: result.created_at as string,
+      updatedAt: result.updated_at as string
+    }
+  },
+
+  getAll: async (env: Env): Promise<GlobalSettings[]> => {
+    const result = await env.SUNPANEL_DB.prepare(`
+      SELECT id, language, website_title, website_description, page_texts, footer_text, created_at, updated_at
+      FROM global_settings ORDER BY id ASC
+    `).all()
+
+    return (result.results || []).map((row: any) => ({
+      id: row.id,
+      language: row.language,
+      websiteTitle: row.website_title,
+      websiteDescription: row.website_description || '',
+      pageTexts: JSON.parse(row.page_texts || '{}'),
+      footerText: row.footer_text || '',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }))
+  },
+
+  update: async (env: Env, language: string, data: Partial<{
+    websiteTitle: string
+    websiteDescription: string
+    pageTexts: Record<string, any>
+    footerText: string
+  }>): Promise<GlobalSettings | null> => {
+    const existing = await d1GlobalSettings.get(env, language)
+    if (!existing) return null
+
+    const now = new Date().toISOString()
+    const merged = {
+      websiteTitle: data.websiteTitle ?? existing.websiteTitle,
+      websiteDescription: data.websiteDescription ?? existing.websiteDescription,
+      pageTexts: data.pageTexts ? JSON.stringify(data.pageTexts) : JSON.stringify(existing.pageTexts),
+      footerText: data.footerText ?? existing.footerText
+    }
+
+    await env.SUNPANEL_DB.prepare(`
+      UPDATE global_settings SET 
+        website_title = ?, website_description = ?, page_texts = ?, footer_text = ?, updated_at = ?
+      WHERE language = ?
+    `).bind(
+      merged.websiteTitle,
+      merged.websiteDescription,
+      merged.pageTexts,
+      merged.footerText,
+      now,
+      language
+    ).run()
+
+    return d1GlobalSettings.get(env, language)
+  },
+
+  create: async (env: Env, data: {
+    language: string
+    websiteTitle: string
+    websiteDescription?: string
+    pageTexts?: Record<string, any>
+    footerText?: string
+  }): Promise<GlobalSettings> => {
+    const now = new Date().toISOString()
+
+    await env.SUNPANEL_DB.prepare(`
+      INSERT INTO global_settings (language, website_title, website_description, page_texts, footer_text, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      data.language,
+      data.websiteTitle,
+      data.websiteDescription || '',
+      JSON.stringify(data.pageTexts || {}),
+      data.footerText || '',
+      now,
+      now
+    ).run()
+
+    return (await d1GlobalSettings.get(env, data.language))!
   }
 }
 
@@ -1634,6 +1761,97 @@ export default {
         }, 200, corsHeaders, requestId)
       }
 
+      if (path === '/global-settings' && method === 'GET') {
+        const url = new URL(request.url)
+        const language = url.searchParams.get('language') || 'zh-CN'
+
+        const globalSettings = await d1GlobalSettings.get(env, language)
+        if (!globalSettings) {
+          return errorResponse('Global settings not found', 404, corsHeaders, requestId)
+        }
+
+        return jsonResponse({
+          language: globalSettings.language,
+          websiteTitle: globalSettings.websiteTitle,
+          websiteDescription: globalSettings.websiteDescription,
+          pageTexts: globalSettings.pageTexts,
+          footerText: globalSettings.footerText
+        }, 200, corsHeaders, requestId)
+      }
+
+      if (path === '/global-settings' && method === 'PUT') {
+        const authResult = await authenticate(request, env, corsHeaders)
+        if (!authResult.success) return authResult.response!
+
+        if (authResult.session!.role !== 'admin') {
+          return errorResponse('Admin access required', 403, corsHeaders, requestId)
+        }
+
+        const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
+        if (!csrfResult.success) return csrfResult.response!
+
+        const body = await request.json()
+        const { language, websiteTitle, websiteDescription, pageTexts, footerText } = body
+
+        if (!language) {
+          return errorResponse('Language is required', 400, corsHeaders, requestId)
+        }
+
+        const updated = await d1GlobalSettings.update(env, language, {
+          websiteTitle,
+          websiteDescription,
+          pageTexts,
+          footerText
+        })
+
+        if (!updated) {
+          return errorResponse('Global settings not found', 404, corsHeaders, requestId)
+        }
+
+        return jsonResponse({
+          language: updated.language,
+          websiteTitle: updated.websiteTitle,
+          websiteDescription: updated.websiteDescription,
+          pageTexts: updated.pageTexts,
+          footerText: updated.footerText
+        }, 200, corsHeaders, requestId)
+      }
+
+      if (path === '/global-settings' && method === 'POST') {
+        const authResult = await authenticate(request, env, corsHeaders)
+        if (!authResult.success) return authResult.response!
+
+        if (authResult.session!.role !== 'admin') {
+          return errorResponse('Admin access required', 403, corsHeaders, requestId)
+        }
+
+        const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
+        if (!csrfResult.success) return csrfResult.response!
+
+        const body = await request.json()
+        const { language, websiteTitle, websiteDescription, pageTexts, footerText } = body
+
+        if (!language) {
+          return errorResponse('Language is required', 400, corsHeaders, requestId)
+        }
+
+        const created = await d1GlobalSettings.create(env, {
+          language,
+          websiteTitle: websiteTitle || 'SunPanel',
+          websiteDescription,
+          pageTexts,
+          footerText
+        })
+
+        return jsonResponse({
+          language: created.language,
+          websiteTitle: created.websiteTitle,
+          websiteDescription: created.websiteDescription,
+          pageTexts: created.pageTexts,
+          footerText: created.footerText
+        }, 201, corsHeaders, requestId)
+      }
+
       if (path === '/export' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) return authResult.response!
@@ -1786,12 +2004,14 @@ export default {
         if (!authResult.success) return authResult.response!
 
         const user = await env.SUNPANEL_DB.prepare(`
-          SELECT id, username, nickname, role, avatar,email FROM users WHERE id = ?
+          SELECT id, username, nickname, role, avatar, email FROM users WHERE id = ?
         `).bind(authResult.session!.user_id).first()
 
         if (!user) {
           return errorResponse('用户不存在', 404, corsHeaders, requestId)
         }
+
+        const settings = await d1Settings.get(env, authResult.session!.user_id)
 
         return jsonResponse({
           id: user.id.toString(),
@@ -1799,7 +2019,8 @@ export default {
           nickname: user.nickname || '用户',
           role: user.role,
           avatar: user.avatar || '',
-          email: user.email || ''
+          email: user.email || '',
+          language: settings.language || 'zh-CN'
         }, 200, corsHeaders, requestId)
       }
 

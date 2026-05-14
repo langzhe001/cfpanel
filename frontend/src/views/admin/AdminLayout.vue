@@ -140,12 +140,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
+import { useGlobalSettingsStore } from '@/stores/globalSettings'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
+const globalSettingsStore = useGlobalSettingsStore()
 
 const sidebarOpen = ref(false)
 const isDark = computed(() => settingsStore.settings.theme === 'dark')
@@ -175,34 +177,38 @@ const executeClose = () => {
   }
 }
 
-const userMenuItems = [
-  { path: '/admin/dashboard', label: '仪表盘', icon: 'ph:chart-pie-bold' },
-  { path: '/admin/profile', label: '个人信息', icon: 'ph:user-bold' },
-  { path: '/admin/personalization', label: '个性化设置', icon: 'ph:paint-brush-bold' },
-]
-
 const adminMenuItems = computed(() => {
+  const pageTexts = globalSettingsStore.settings?.pageTexts?.admin || {}
   const items = [
-    { path: '/admin/groups', label: '分组管理', icon: 'ph:folder-bold' },
-    { path: '/admin/gallery', label: '图库', icon: 'ph:image-bold' },
+    { path: '/admin/groups', label: pageTexts.groups || '分组管理', icon: 'ph:folder-bold' },
+    { path: '/admin/gallery', label: pageTexts.gallery || '图库', icon: 'ph:image-bold' },
     { path: '/admin/export-import', label: '导出/导入', icon: 'ph:export-bold' },
     { path: '/admin/api', label: 'API / Open API', icon: 'ph:code-bold' },
   ]
-  
+
   if (authStore.user?.role === 'admin') {
-    items.push({ path: '/admin/accounts', label: '账号管理', icon: 'ph:users-bold' })
+    items.push({ path: '/admin/accounts', label: pageTexts.users || '账号管理', icon: 'ph:users-bold' })
     items.push({ path: '/admin/public-gallery', label: '公共图库', icon: 'ph:images-bold' })
-    items.push({ path: '/admin/global-settings', label: '全局设置', icon: 'ph:gear-bold' })
+    items.push({ path: '/admin/global-settings', label: pageTexts.settings || '全局设置', icon: 'ph:gear-bold' })
     items.push({ path: '/admin/migration', label: '迁移', icon: 'ph:git-merge-bold' })
   }
-  
+
   items.push({ path: '/admin/about', label: '关于', icon: 'ph:info-bold' })
-  
+
   return items
 })
 
+const userMenuItems = computed(() => {
+  const pageTexts = globalSettingsStore.settings?.pageTexts?.admin || {}
+  return [
+    { path: '/admin/dashboard', label: pageTexts.dashboard || '仪表盘', icon: 'ph:chart-pie-bold' },
+    { path: '/admin/profile', label: pageTexts.profile || '个人信息', icon: 'ph:user-bold' },
+    { path: '/admin/personalization', label: pageTexts.personalization || '个性化设置', icon: 'ph:paint-brush-bold' },
+  ]
+})
+
 const currentPageTitle = computed(() => {
-  const allItems = [...userMenuItems, ...adminMenuItems.value]
+  const allItems = [...userMenuItems.value, ...adminMenuItems.value]
   const current = allItems.find(item => isActive(item.path))
   return current?.label || 'SunPanel'
 })

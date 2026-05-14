@@ -97,39 +97,72 @@ const router = createRouter({
   routes
 })
 
+const LOGIN_PATH = '/login'
+const HOME_PATH = '/'
+
+let lastNavigationTime = 0
+const NAVIGATION_THROTTLE_MS = 500
+
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
+  const timestamp = Date.now()
   
-  console.log('路由守卫:', { from: from.path, to: to.path })
-  console.log('会话有效:', authStore.isSessionValid())
-  console.log('用户信息:', authStore.user)
-  console.log('Cookie:', document.cookie)
+  const timeSinceLastNav = timestamp - lastNavigationTime
+  if (timeSinceLastNav < NAVIGATION_THROTTLE_MS) {
+    console.log(`[ROUTE-GUARD] ${timestamp} - 导航过于频繁，忽略本次请求 (间隔: ${timeSinceLastNav}ms)`)
+    next(false)
+    return
+  }
+  lastNavigationTime = timestamp
   
-  if (to.meta.requiresAuth && !authStore.isSessionValid()) {
-    console.log('会话无效，跳转到登录页')
-    next('/login')
+  console.log(`[ROUTE-GUARD] ${timestamp} - 开始路由守卫`, {
+    from: from.path || '(首次加载)',
+    to: to.path,
+    requiresAuth: to.meta.requiresAuth,
+    requiresAdmin: to.meta.requiresAdmin,
+    isSessionValid: authStore.isSessionValid(),
+    hasUser: !!authStore.user,
+    isFetchingUser: authStore.isFetchingUser
+  })
+  
+  if (to.path === LOGIN_PATH) {
+    console.log(`[ROUTE-GUARD] ${timestamp} - 目标是登录页`)
+    if (authStore.isSessionValid()) {
+      console.log(`[ROUTE-GUARD] ${timestamp} - 会话有效，重定向到首页`)
+      next(HOME_PATH)
+      return
+    }
+    console.log(`[ROUTE-GUARD] ${timestamp} - 会话无效，允许访问登录页`)
+    next()
     return
   }
   
-  if (to.meta.requiresAuth && !authStore.user) {
-    console.log('没有用户信息，尝试获取...')
+  if (to.meta.requiresAuth && !authStore.isSessionValid()) {
+    console.log(`[ROUTE-GUARD] ${timestamp} - 需要认证但会话无效，重定向到登录页`)
+    next(LOGIN_PATH)
+    return
+  }
+  
+  if (to.meta.requiresAuth && !authStore.user && !authStore.isFetchingUser) {
+    console.log(`[ROUTE-GUARD] ${timestamp} - 需要用户信息，开始获取...`)
     try {
-      await authStore.fetchUser()
-      console.log('用户信息获取成功:', authStore.user)
-    } catch {
-      console.error('获取用户信息失败')
+      const user = await authStore.fetchUser()
+      console.log(`[ROUTE-GUARD] ${timestamp} - 用户信息获取成功:`, user?.username)
+    } catch (err) {
+      console.error(`[ROUTE-GUARD] ${timestamp} - 用户信息获取失败:`, err)
       await authStore.logout()
-      next('/login')
+      next(LOGIN_PATH)
       return
     }
   }
   
-  // 检查是否需要管理员权限
   if (to.meta.requiresAdmin && authStore.user?.role !== 'admin') {
+    console.log(`[ROUTE-GUARD] ${timestamp} - 非管理员访问管理员页面，重定向到仪表盘`)
     next('/admin/dashboard')
     return
   }
   
+  console.log(`[ROUTE-GUARD] ${timestamp} - 允许路由: ${to.path}`)
   next()
 })
 

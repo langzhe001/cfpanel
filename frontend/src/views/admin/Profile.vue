@@ -72,6 +72,19 @@
           />
         </div>
 
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">语言</label>
+          <select
+            v-model="form.language"
+            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
+          >
+            <option value="zh-CN">简体中文</option>
+            <option value="en-US">English</option>
+            <option value="ja-JP">日本語</option>
+            <option value="ko-KR">한국어</option>
+          </select>
+        </div>
+
         <div class="flex justify-end gap-3">
           <button 
             type="button" 
@@ -154,6 +167,7 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useGlobalSettingsStore } from '@/stores/globalSettings'
 import { userApi } from '@/api'
 import ErrorMessage from '@/components/ErrorMessage.vue'
 import { sanitizeNickname, validateEmail, containsXss } from '@/utils/security'
@@ -168,6 +182,7 @@ const showSuccessMessage = (message: string) => {
 }
 
 const authStore = useAuthStore()
+const globalSettingsStore = useGlobalSettingsStore()
 
 const error = ref('')
 const isSaving = ref(false)
@@ -177,7 +192,8 @@ const form = reactive({
   username: '',
   nickname: '',
   email: '',
-  avatar: ''
+  avatar: '',
+  language: 'zh-CN'
 })
 
 const passwordForm = reactive({
@@ -218,10 +234,17 @@ const handleSubmit = async () => {
     if (form.avatar !== originalForm.avatar) {
       updateData.avatar = form.avatar
     }
+    if (form.language !== originalForm.language) {
+      updateData.language = form.language
+    }
     
     if (Object.keys(updateData).length > 0) {
-      await userApi.updateProfile(updateData)
+      const res = await userApi.updateProfile(updateData)
       authStore.user = { ...authStore.user!, ...updateData }
+      
+      if (updateData.language) {
+        await globalSettingsStore.loadSettingsByUserLanguage(updateData.language)
+      }
     }
     
     Object.assign(originalForm, form)
@@ -300,6 +323,7 @@ onMounted(() => {
     form.nickname = authStore.user.nickname
     form.email = authStore.user.email || ''
     form.avatar = authStore.user.avatar || ''
+    form.language = authStore.user.language || 'zh-CN'
     Object.assign(originalForm, form)
   }
 })

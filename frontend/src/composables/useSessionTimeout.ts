@@ -18,16 +18,11 @@ export const useSessionTimeout = (options: SessionWarningOptions = {}) => {
   const showWarning = ref(false)
   const remainingSeconds = ref(0)
   let checkInterval: number | null = null
-  let warningTimeout: number | null = null
 
   const clearTimers = () => {
     if (checkInterval) {
       clearInterval(checkInterval)
       checkInterval = null
-    }
-    if (warningTimeout) {
-      clearTimeout(warningTimeout)
-      warningTimeout = null
     }
   }
 
@@ -41,7 +36,8 @@ export const useSessionTimeout = (options: SessionWarningOptions = {}) => {
   }
 
   const checkSession = async () => {
-    if (!authStore.token) {
+    const token = authStore.getToken()
+    if (!token) {
       clearTimers()
       return
     }
@@ -71,13 +67,14 @@ export const useSessionTimeout = (options: SessionWarningOptions = {}) => {
   }
 
   const startMonitoring = () => {
-    if (!authStore.token) return
+    const token = authStore.getToken()
+    if (!token) return
 
     clearTimers()
 
     checkSession()
 
-    checkInterval = window.setInterval(checkSession, 1000)
+    checkInterval = window.setInterval(checkSession, 5000)
   }
 
   const stopMonitoring = () => {
@@ -91,14 +88,13 @@ export const useSessionTimeout = (options: SessionWarningOptions = {}) => {
   }
 
   const refreshSession = async () => {
-    if (!authStore.token) return
+    const token = authStore.getToken()
+    if (!token) return
 
     try {
       const response = await fetch('/api/auth/csrf-token', {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${authStore.token}`
-        }
+        credentials: 'include'
       })
 
       if (response.ok) {
@@ -115,7 +111,7 @@ export const useSessionTimeout = (options: SessionWarningOptions = {}) => {
   }
 
   onMounted(() => {
-    if (authStore.token) {
+    if (authStore.isSessionValid()) {
       startMonitoring()
     }
   })

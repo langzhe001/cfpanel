@@ -23,11 +23,28 @@ export const useSettingsStore = defineStore('settings', () => {
   const settings = ref<Settings>({ ...defaultSettings })
   const isLoaded = ref(false)
 
-  const loadSettings = async () => {
+  const loadSettings = async (forceApi = false) => {
+    const isAuthenticated = () => {
+      if (typeof window === 'undefined') return false
+      const cookies = document.cookie.split('; ')
+      return cookies.some(c => c.startsWith('session_token='))
+    }
+
+    if (!isAuthenticated() && !forceApi) {
+      const saved = localStorage.getItem('settings')
+      if (saved) {
+        settings.value = { ...defaultSettings, ...JSON.parse(saved) }
+      }
+      isLoaded.value = true
+      return
+    }
+
     try {
       const res = await settingsApi.get()
       settings.value = { ...defaultSettings, ...res.data }
-    } catch {
+      localStorage.setItem('settings', JSON.stringify(settings.value))
+    } catch (err: any) {
+      console.warn('加载设置失败，使用本地缓存:', err.message)
       const saved = localStorage.getItem('settings')
       if (saved) {
         settings.value = { ...defaultSettings, ...JSON.parse(saved) }
