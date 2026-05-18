@@ -15,7 +15,7 @@
       <div class="p-6 space-y-6">
         <div>
           <h4 class="font-medium text-slate-700 dark:text-slate-300 mb-2">{{ t('admin.migrateFromSunPanel') || '从 sun-panel 迁移' }}</h4>
-          <p class="text-sm text-slate-500 mb-4">{{ t('admin.migrateFromSunPanelDesc') || ('支持从官方 sun-panel 导出' + (t('admin.dataMigration') || '数据迁移') + '到本系统。') }}</p>
+          <p class="text-sm text-slate-500 mb-4">{{ t('admin.migrateFromSunPanelDesc') || '支持从官方 sun-panel 导出数据迁移到本系统。' }}</p>
           <div class="flex gap-3">
             <button 
               @click="migrateFromSunPanel" 
@@ -123,11 +123,11 @@ const handleMigrationFile = async (e: Event) => {
       }
     }
     
-    error.value = '迁移成功！'
+    error.value = t('admin.migrationSuccess') || '迁移成功！'
     messageType.value = 'success'
     setTimeout(() => { error.value = '' }, 3000)
   } catch (err: any) {
-    error.value = err.message || '文件格式错误，请检查文件内容'
+    error.value = err.message || (t('admin.migrationFileError') || '文件格式错误，请检查文件内容')
     messageType.value = 'error'
   } finally {
     isProcessing.value = false

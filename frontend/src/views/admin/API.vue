@@ -51,7 +51,7 @@
             </div>
             <div v-else class="flex gap-2">
               <input
-                value="{{ t('admin.noAPIToken') || '未生成 API Token' }}"
+                :value="t('admin.noAPIToken') || '未生成 API Token'"
                 type="text"
                 readonly
                 class="flex-1 px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-500 font-mono"
@@ -83,7 +83,7 @@
                 :disabled="isLoading"
               >
                 <Icon icon="ph:x-bold" class="w-5 h-5" />
-                撤销
+                {{ t('admin.revoke') || '撤销' }}
               </button>
             </div>
           </div>
@@ -237,7 +237,7 @@ const loadTokenFromStorage = () => {
         tokenExpiresAt.value = expiryTime
       } else {
         clearTokenStorage()
-        showMessage('Token 已过期，请重新生成', 'warning')
+        showMessage(t('admin.tokenExpired') || 'Token 已过期，请重新生成', 'warning')
       }
     }
   } catch (error) {
@@ -284,10 +284,10 @@ const generateToken = async () => {
         .join('')
       
       saveTokenToStorage(token)
-      showMessage('Token 生成成功！请妥善保管，有效期 90 天', 'success')
+      showMessage(t('admin.tokenGeneratedSuccess') || 'Token 生成成功！请妥善保管，有效期 90 天', 'success')
       showToken.value = true
     } catch (error) {
-      showMessage('生成失败，请重试', 'error')
+      showMessage(t('admin.tokenGenerateFailed') || '生成失败，请重试', 'error')
     } finally {
       isLoading.value = false
       showConfirmModal.value = false
@@ -295,8 +295,8 @@ const generateToken = async () => {
   }
   
   if (apiToken.value) {
-    confirmModalTitle.value = '重新生成 Token'
-    confirmModalMessage.value = '重新生成将导致之前的 Token 立即失效，是否继续？'
+    confirmModalTitle.value = t('admin.confirmRegenerate') || '重新生成 Token'
+    confirmModalMessage.value = t('admin.regenerateConfirmMessage') || '重新生成将导致之前的 Token 立即失效，是否继续？'
     confirmModalCallback = action
     showConfirmModal.value = true
   } else {
@@ -305,15 +305,15 @@ const generateToken = async () => {
 }
 
 const revokeToken = () => {
-  confirmModalTitle.value = '撤销 Token'
-  confirmModalMessage.value = '确定要撤销当前的 API Token 吗？撤销后将无法使用该 Token 访问 API。'
+  confirmModalTitle.value = t('admin.confirmRevoke') || '撤销 Token'
+  confirmModalMessage.value = t('admin.revokeConfirmMessage') || '确定要撤销当前的 API Token 吗？撤销后将无法使用该 Token 访问 API。'
   confirmModalCallback = () => {
     apiToken.value = ''
     tokenCreatedAt.value = null
     tokenExpiresAt.value = null
     clearTokenStorage()
     showToken.value = false
-    showMessage('Token 已撤销', 'success')
+    showMessage(t('admin.tokenRevoked') || 'Token 已撤销', 'success')
     showConfirmModal.value = false
   }
   showConfirmModal.value = true
@@ -335,9 +335,9 @@ const copyToken = async () => {
   
   try {
     await navigator.clipboard.writeText(apiToken.value)
-    showMessage('Token 已复制到剪贴板', 'success')
+    showMessage(t('admin.tokenCopied') || 'Token 已复制到剪贴板', 'success')
   } catch (error) {
-    showMessage('复制失败，请手动复制', 'error')
+    showMessage(t('admin.copyFailed') || '复制失败，请手动复制', 'error')
   }
 }
 

@@ -1,0 +1,2 @@
+-- 重置中文语言数据
+UPDATE global_settings SET page_texts = '{"admin":{"migrateFromSunPanel":"从 sun-panel 迁移","migrateFromSunPanelDesc":"支持从官方 sun-panel 导出数据迁移到本系统。","selectFileMigrate":"选择文件迁移","exportToSunPanel":"导出到 sun-panel","exportToSunPanelDesc":"将当前数据导出为 sun-panel 兼容格式。","exportCompatible":"导出兼容格式","migrationInstructions":"迁移说明","migrationStep1":"1. 从 sun-panel 导出配置（设置 -> 导出数据）","migrationStep2":"2. 使用上方工具导入到本系统","migrationStep3":"3. 迁移完成后请检查数据完整性","migrationStep4":"4. 图片资源需要单独迁移"}}' WHERE language = 'zh-CN';

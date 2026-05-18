@@ -98,13 +98,13 @@
                 class="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 flex items-center justify-center gap-2 transition-colors"
               >
                 <Icon icon="ph:image-bold" class="w-5 h-5" />
-                从图库选择
+                {{ t('admin.personalization.selectFromGallery') || '从图库选择' }}
               </button>
               <input
                 v-model="wallpaperUrl"
                 @change="updateSetting('wallpaper', wallpaperUrl)"
                 type="text"
-                placeholder="或输入URL"
+                :placeholder="t('admin.personalization.orEnterURL') || '或输入URL'"
                 class="flex-1 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
               />
             </div>
@@ -216,7 +216,7 @@
         </div>
         <div class="p-6 overflow-y-auto max-h-[calc(80vh-80px)]">
           <div v-if="galleryLoading" class="py-12">
-            <LoadingSpinner text="加载图片中..." />
+            <LoadingSpinner :text="t('admin.personalization.loadingImages') || '加载图片中...'" />
           </div>
           <div v-else-if="galleryImages.length === 0" class="py-12">
             <EmptyState
@@ -266,11 +266,11 @@ watch(() => settings.value.wallpaperType, (type) => {
   }
 }, { immediate: true })
 
-const themes = [
-  { value: 'light', label: '浅色', icon: 'ph:sun-bold' },
-  { value: 'dark', label: '深色', icon: 'ph:moon-bold' },
-  { value: 'auto', label: '跟随系统', icon: 'ph:desktop-bold' },
-]
+const themes = computed(() => [
+  { value: 'light', label: t('admin.personalization.light') || 'Light', icon: 'ph:sun-bold' },
+  { value: 'dark', label: t('admin.personalization.dark') || 'Dark', icon: 'ph:moon-bold' },
+  { value: 'auto', label: t('admin.personalization.auto') || 'System', icon: 'ph:desktop-bold' },
+])
 
 const customCSS = ref('')
 

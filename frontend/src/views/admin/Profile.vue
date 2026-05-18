@@ -91,7 +91,7 @@
             @click="resetForm"
             class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
           >
-            取消
+            {{ t('common.cancel') || '取消' }}
           </button>
           <button 
             type="submit" 
@@ -103,9 +103,9 @@
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              保存中...
+              {{ t('common.saving') || '保存中...' }}
             </span>
-            <span v-else>保存</span>
+            <span v-else>{{ t('common.save') || '保存' }}</span>
           </button>
         </div>
       </form>
@@ -140,7 +140,7 @@
             v-model="passwordForm.confirmPassword"
             type="password"
             class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
-            placeholder="请再次输入{{ profileTexts.newPassword || '新密码' }}"
+            :placeholder="('请再次输入' + (profileTexts.newPassword || '新密码'))"
           />
         </div>
         <div class="flex justify-end">
@@ -154,7 +154,7 @@
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              修改中...
+              {{ t('common.saving') || '修改中...' }}
             </span>
             <span v-else>{{ profileTexts.changePassword || '修改密码' }}</span>
           </button>

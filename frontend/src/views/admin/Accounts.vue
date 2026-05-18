@@ -22,14 +22,14 @@
       </div>
       <div class="p-6">
         <div v-if="isLoading" class="py-12">
-          <LoadingSpinner text="{{ t('admin.loadingUsers') || '加载用户列表...' }}" />
+          <LoadingSpinner :text="t('common.loading') || '加载中...'" />
         </div>
         <div v-else-if="users.length === 0" class="py-12">
           <EmptyState
             icon="👥"
-            title="{{ t('admin.noAccounts') || '暂无账号' }}"
+            :title="t('admin.noAccounts') || '暂无账号'"
             :description="t('admin.clickAddAccount') || '点击上方按钮添加账号'"
-            action-text="{{ t('admin.addAccount') || '添加账号' }}"
+            :action-text="t('admin.addAccount') || '添加账号'"
             @action="showAddModal = true"
           />
         </div>
@@ -82,7 +82,7 @@
               required 
               :disabled="!!editingUser"
               class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white disabled:opacity-50 focus:ring-2 focus:ring-orange-500 outline-none"
-              placeholder="请输入{{ t('admin.username') || '用户名' }}"
+              :placeholder="t('admin.username') || '用户名'"
             />
           </div>
           <div>
@@ -91,7 +91,7 @@
               v-model="userForm.nickname" 
               type="text" 
               class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
-              placeholder="请输入{{ t('admin.nickname') || '昵称' }}"
+              :placeholder="t('admin.nickname') || '昵称'"
             />
           </div>
           <div>
@@ -100,7 +100,7 @@
               v-model="userForm.email" 
               type="email" 
               class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
-              placeholder="请输入{{ t('admin.email') || '邮箱' }}"
+              :placeholder="t('admin.email') || '邮箱'"
             />
           </div>
           <div v-if="!editingUser">
@@ -110,7 +110,7 @@
               type="password" 
               required 
               class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
-              placeholder="请输入{{ t('admin.password') || '密码' }}"
+              :placeholder="t('admin.password') || '密码'"
             />
           </div>
           <div>
@@ -191,7 +191,7 @@ const fetchUsers = async () => {
     const res = await userApi.getList()
     users.value = res.data || []
   } catch (err: any) {
-    error.value = err.response?.data?.message || err.message || '获取用户列表失败'
+    error.value = err.response?.data?.message || err.message || (t('admin.fetchUsersFailed') || '获取用户列表失败')
     messageType.value = 'error'
     users.value = []
   } finally {
@@ -226,7 +226,7 @@ const saveUser = async () => {
         email: userForm.email || undefined,
         role: userForm.role
       })
-      error.value = '用户更新成功'
+      error.value = t('admin.updateSuccess') || '用户更新成功'
       messageType.value = 'success'
     } else {
       await userApi.create({
@@ -236,13 +236,13 @@ const saveUser = async () => {
         password: userForm.password,
         role: userForm.role
       })
-      error.value = '用户创建成功'
+      error.value = t('admin.createSuccess') || '用户创建成功'
       messageType.value = 'success'
     }
     closeModal()
     await fetchUsers()
   } catch (err: any) {
-    error.value = err.response?.data?.message || err.message || '保存失败'
+    error.value = err.response?.data?.message || err.message || (t('admin.saveFailed') || '保存失败')
     messageType.value = 'error'
   } finally {
     isSaving.value = false
@@ -253,16 +253,16 @@ const saveUser = async () => {
 }
 
 const deleteUser = async (id: string) => {
-  if (!confirm('确定要删除这个账号吗？此操作不可撤销。')) return
+  if (!confirm(t('admin.confirmDeleteAccount') || '确定要删除这个账号吗？此操作不可撤销。')) return
   
   isLoading.value = true
   try {
     await userApi.delete(id)
-    error.value = '用户删除成功'
+    error.value = t('admin.deleteSuccess') || '用户删除成功'
     messageType.value = 'success'
     await fetchUsers()
   } catch (err: any) {
-    error.value = err.response?.data?.message || err.message || '删除失败'
+    error.value = err.response?.data?.message || err.message || (t('admin.deleteFailed') || '删除失败')
     messageType.value = 'error'
   } finally {
     isLoading.value = false

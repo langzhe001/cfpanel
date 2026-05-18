@@ -3,7 +3,7 @@
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 text-center">
       <div class="text-6xl mb-4">☀️</div>
       <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-200">SunPanel Cloudflare</h2>
-      <p class="text-slate-500 mt-2">版本 v1.0.0</p>
+      <p class="text-slate-500 mt-2">{{ t('admin.version') || '版本' }} v1.0.0</p>
       <p class="text-sm text-slate-400 mt-1">{{ t('admin.cloudflareNavigation') || '基于 Cloudflare 部署的导航面板' }}</p>
     </div>
 
@@ -29,7 +29,7 @@
             </div>
             <div>
               <p class="font-medium text-slate-700 dark:text-slate-300">Vue 3</p>
-              <p class="text-xs text-slate-500">前端框架</p>
+              <p class="text-xs text-slate-500">{{ t('admin.frontendFramework') || '前端框架' }}</p>
             </div>
           </div>
           <div class="flex items-center gap-3">
@@ -38,7 +38,7 @@
             </div>
             <div>
               <p class="font-medium text-slate-700 dark:text-slate-300">Cloudflare</p>
-              <p class="text-xs text-slate-500">部署平台</p>
+              <p class="text-xs text-slate-500">{{ t('admin.deploymentPlatform') || '部署平台' }}</p>
             </div>
           </div>
           <div class="flex items-center gap-3">
@@ -47,7 +47,7 @@
             </div>
             <div>
               <p class="font-medium text-slate-700 dark:text-slate-300">Cloudflare Workers</p>
-              <p class="text-xs text-slate-500">后端服务</p>
+              <p class="text-xs text-slate-500">{{ t('admin.backendService') || '后端服务' }}</p>
             </div>
           </div>
           <div class="flex items-center gap-3">
@@ -56,7 +56,7 @@
             </div>
             <div>
               <p class="font-medium text-slate-700 dark:text-slate-300">Cloudflare D1</p>
-              <p class="text-xs text-slate-500">数据库</p>
+              <p class="text-xs text-slate-500">{{ t('admin.database') || '数据库' }}</p>
             </div>
           </div>
         </div>

@@ -114,7 +114,7 @@ const exportData = async () => {
     const res = await exportImportApi.exportData()
     
     if (!res || typeof res !== 'object') {
-      throw new Error('无效的响应格式')
+      throw new Error(t('admin.exportError') || '无效的响应格式')
     }
     
     const blob = new Blob([JSON.stringify(res, null, 2)], { type: 'application/json' })
@@ -125,9 +125,9 @@ const exportData = async () => {
     a.click()
     URL.revokeObjectURL(url)
     
-    showSuccessMessage('导出成功')
+    showSuccessMessage(t('admin.exportSuccess') || '导出成功')
   } catch {
-    error.value = '导出失败，请重试'
+    error.value = t('admin.exportFailed') || '导出失败，请重试'
   } finally {
     isExporting.value = false
   }
@@ -150,7 +150,7 @@ const confirmImport = async () => {
   
   try {
     await exportImportApi.importData(importFile.value)
-    showSuccessMessage('导入成功')
+    showSuccessMessage(t('admin.importSuccess') || '导入成功')
     
     await settingsStore.loadSettings()
     await dataStore.refreshAll()
@@ -159,7 +159,7 @@ const confirmImport = async () => {
       window.location.reload()
     }, 1500)
   } catch {
-    error.value = '导入失败，请检查文件格式'
+    error.value = t('admin.importFailed') || '导入失败，请检查文件格式'
   } finally {
     isImporting.value = false
     importFile.value = null
