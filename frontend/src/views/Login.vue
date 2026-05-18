@@ -23,14 +23,32 @@
                 </svg>
               </div>
             </div>
-            <button class="text-sm text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white transition-colors">
-              {{ currentLanguageDisplay }}
+            <button 
+              @click="showLanguageSelector = !showLanguageSelector"
+              class="text-sm text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white transition-colors"
+            >
+              {{ currentLanguageDisplay }} ▼
             </button>
+            
+            <div 
+              v-if="showLanguageSelector"
+              class="absolute top-4 right-4 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 py-2"
+            >
+              <button
+                v-for="lang in availableLanguages"
+                :key="lang.code"
+                @click="selectLanguage(lang.code)"
+                class="block w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
+                :class="{ 'bg-orange-50 dark:bg-orange-900/30': lang.code === currentLanguage }"
+              >
+                {{ lang.native }}
+              </button>
+            </div>
           </div>
 
           <div class="text-center mb-8">
             <h1 class="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">
-              Sun-Panel
+              {{ globalSettingsStore.websiteTitle }}
             </h1>
           </div>
 
@@ -47,7 +65,7 @@
                 type="text"
                 required
                 class="w-full pl-12 pr-4 py-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white/60 dark:bg-slate-700/60 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
-                :placeholder="login.username || 'admin@sun.cc'"
+                :placeholder="login.username || '用户名'"
               />
             </div>
 
@@ -63,7 +81,7 @@
                 type="password"
                 required
                 class="w-full pl-12 pr-4 py-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white/60 dark:bg-slate-700/60 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
-                :placeholder="login.password || '••••••••'"
+                :placeholder="login.password || '密码'"
               />
             </div>
 
@@ -80,7 +98,7 @@
                   type="text"
                   required
                   class="w-full pl-12 pr-4 py-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white/60 dark:bg-slate-700/60 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
-                  :placeholder="login.nickname || '请输入昵称'"
+                  :placeholder="login.nickname || '昵称'"
                 />
               </div>
               <div class="relative">
@@ -95,7 +113,7 @@
                   type="password"
                   required
                   class="w-full pl-12 pr-4 py-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white/60 dark:bg-slate-700/60 text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
-                  :placeholder="login.confirmPassword || '请再次输入密码'"
+                  :placeholder="login.confirmPassword || '确认密码'"
                 />
               </div>
             </div>
@@ -114,7 +132,7 @@
                 <span>{{ error }}</span>
               </div>
               <div v-if="rateLimited" class="mt-2 text-xs text-orange-500">
-                剩余等待时间: {{ rateLimitRemaining }} 秒
+                {{ t('login.rateLimitWait') || '剩余等待时间' }}: {{ rateLimitRemaining }} {{ t('login.seconds') || '秒' }}
               </div>
             </div>
 
@@ -123,7 +141,7 @@
               :disabled="loading"
               class="w-full py-4 text-white font-medium bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl hover:from-green-600 hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-green-500/30"
             >
-              <span v-if="loading">{{ login.loading || '请稍候...' }}</span>
+              <span v-if="loading">{{ login.loading || '加载中...' }}</span>
               <span v-else>{{ isRegisterMode ? (login.register || '注册') : (login.submit || '登录') }}</span>
             </button>
           </form>
@@ -148,7 +166,7 @@
 
           <div class="mt-6 text-center">
             <p class="text-xs text-slate-400">
-              Powered By Sun-Panel
+              Powered By {{ globalSettingsStore.websiteTitle }}
             </p>
           </div>
         </div>
@@ -168,7 +186,7 @@ import { authApi } from '@/api'
 const router = useRouter()
 const authStore = useAuthStore()
 const globalSettingsStore = useGlobalSettingsStore()
-const { login, pageTexts } = usePageTexts()
+const { login, t } = usePageTexts()
 
 const isRegisterMode = ref(false)
 const loading = ref(false)
@@ -176,17 +194,22 @@ const error = ref('')
 const rateLimited = ref(false)
 const rateLimitRemaining = ref(0)
 const lastRequestTime = ref(0)
+const showLanguageSelector = ref(false)
+
+const availableLanguages = [
+  { code: 'zh-CN', name: '简体中文', native: '简体中文' },
+  { code: 'en-US', name: 'English', native: 'English' },
+  { code: 'ja-JP', name: 'Japanese', native: '日本語' },
+  { code: 'ko-KR', name: 'Korean', native: '한국어' }
+]
 
 const currentLanguageDisplay = computed(() => {
   const lang = globalSettingsStore.currentLanguage
-  const langNames: Record<string, string> = {
-    'zh-CN': '简体中文',
-    'en-US': 'English',
-    'ja-JP': '日本語',
-    'ko-KR': '한국어'
-  }
-  return langNames[lang] || lang
+  const langInfo = availableLanguages.find(l => l.code === lang)
+  return langInfo?.native || lang
 })
+
+const currentLanguage = computed(() => globalSettingsStore.currentLanguage)
 
 const form = reactive({
   username: '',
@@ -199,19 +222,24 @@ const MIN_REQUEST_INTERVAL = 1000
 
 const validatePassword = (password: string): string | null => {
   if (password.length < 8) {
-    return '密码长度至少为8位'
+    return t('login.passwordTooShort') || '密码长度至少为8位'
   }
   if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password)) {
-    return '密码需包含大小写字母、数字和特殊字符(@$!%*?&)'
+    return t('login.passwordRequirements') || '密码需包含大小写字母、数字和特殊字符(@$!%*?&)'
   }
   return null
 }
 
 const validateUsername = (username: string): string | null => {
   if (!/^[a-zA-Z0-9_]{3,50}$/.test(username)) {
-    return '用户名只能包含字母、数字和下划线，长度3-50位'
+    return t('login.usernameRequirements') || '用户名只能包含字母、数字和下划线，长度3-50位'
   }
   return null
+}
+
+const selectLanguage = async (language: string) => {
+  showLanguageSelector.value = false
+  await globalSettingsStore.setLanguage(language)
 }
 
 const handleLogin = async () => {
@@ -225,11 +253,11 @@ const handleLogin = async () => {
 
   if (isRegisterMode.value) {
     if (!form.nickname.trim()) {
-      error.value = '请输入昵称'
+      error.value = t('login.enterNickname') || '请输入昵称'
       return
     }
     if (form.password !== form.confirmPassword) {
-      error.value = '两次输入的密码不一致'
+      error.value = t('login.passwordMismatch') || '两次输入的密码不一致'
       return
     }
     const passwordError = validatePassword(form.password)
@@ -244,11 +272,11 @@ const handleLogin = async () => {
     }
   } else {
     if (!form.username.trim()) {
-      error.value = '请输入用户名'
+      error.value = t('login.enterUsername') || '请输入用户名'
       return
     }
     if (!form.password.trim()) {
-      error.value = '请输入密码'
+      error.value = t('login.enterPassword') || '请输入密码'
       return
     }
   }
@@ -261,7 +289,7 @@ const handleLogin = async () => {
         password: form.password,
         nickname: form.nickname
       })
-      error.value = '注册成功，请登录'
+      error.value = t('login.registerSuccess') || '注册成功，请登录'
       isRegisterMode.value = false
       form.password = ''
       form.confirmPassword = ''
@@ -276,7 +304,7 @@ const handleLogin = async () => {
         authStore.setUser(res.data.user)
         await router.push('/')
       } else {
-        error.value = '登录失败，请重试'
+        error.value = t('login.loginFailed') || '登录失败，请重试'
       }
     }
   } catch (err: any) {
@@ -285,7 +313,7 @@ const handleLogin = async () => {
     if (err.response?.status === 429) {
       rateLimited.value = true
       rateLimitRemaining.value = 60
-      error.value = '请求过于频繁，请稍后再试'
+      error.value = t('login.tooManyRequests') || '请求过于频繁，请稍后再试'
       
       const countdownInterval = setInterval(() => {
         rateLimitRemaining.value--
@@ -296,9 +324,9 @@ const handleLogin = async () => {
       }, 1000)
     } else {
       error.value = err.response?.data?.message || 
-                   (err.response?.status === 401 ? '用户名或密码错误' : 
-                   (err.response?.status === 500 ? '服务器内部错误，请稍后重试' : 
-                   '操作失败，请重试'))
+                   (err.response?.status === 401 ? (t('login.invalidCredentials') || '用户名或密码错误') : 
+                   (err.response?.status === 500 ? (t('login.serverError') || '服务器内部错误，请稍后重试') : 
+                   (t('login.operationFailed') || '操作失败，请重试')))
     }
   } finally {
     loading.value = false

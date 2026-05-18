@@ -4,22 +4,22 @@
       <div class="text-6xl mb-4">☀️</div>
       <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-200">SunPanel Cloudflare</h2>
       <p class="text-slate-500 mt-2">版本 v1.0.0</p>
-      <p class="text-sm text-slate-400 mt-1">基于 Cloudflare 部署的导航面板</p>
+      <p class="text-sm text-slate-400 mt-1">{{ t('admin.cloudflareNavigation') || '基于 Cloudflare 部署的导航面板' }}</p>
     </div>
 
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
       <div class="p-6 border-b border-slate-200 dark:border-slate-700">
-        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">关于项目</h3>
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ t('admin.aboutProject') || '关于项目' }}</h3>
       </div>
       <div class="p-6 text-slate-600 dark:text-slate-400 space-y-3 text-sm">
-        <p>SunPanel Cloudflare 是一个专为 Cloudflare 优化的开源导航面板项目。</p>
-        <p>本项目受 <a href="https://github.com/hslr-s/sun-panel" target="_blank" class="text-orange-500 hover:underline">sun-panel</a> 启发并进行适配优化。</p>
+        <p>{{ t('admin.projectDescription') || 'SunPanel Cloudflare 是一个专为 Cloudflare 优化的开源导航面板项目。' }}</p>
+        <p>{{ t('admin.inspiredBy') || '本项目受' }} <a href="https://github.com/hslr-s/sun-panel" target="_blank" class="text-orange-500 hover:underline">sun-panel</a> {{ t('admin.andAdapted') || '启发并进行适配优化。' }}</p>
       </div>
     </div>
 
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
       <div class="p-6 border-b border-slate-200 dark:border-slate-700">
-        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">技术栈</h3>
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ t('admin.techStack') || '技术栈' }}</h3>
       </div>
       <div class="p-6">
         <div class="grid grid-cols-2 gap-4">
@@ -65,11 +65,11 @@
 
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
       <div class="p-6 border-b border-slate-200 dark:border-slate-700">
-        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">许可证</h3>
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ t('admin.license') || '许可证' }}</h3>
       </div>
       <div class="p-6 text-slate-600 dark:text-slate-400 text-sm">
-        <p>本项目基于 MIT 许可证开源。</p>
-        <p class="mt-2">您可以自由使用、修改和分发本项目。</p>
+        <p>{{ t('admin.mitLicense') || '本项目基于 MIT 许可证开源。' }}</p>
+        <p class="mt-2">{{ t('admin.freeUse') || '您可以自由使用、修改和分发本项目。' }}</p>
       </div>
     </div>
   </div>
@@ -77,4 +77,7 @@
 
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
+import { usePageTexts } from '@/composables/useI18n'
+
+const { t } = usePageTexts()
 </script>

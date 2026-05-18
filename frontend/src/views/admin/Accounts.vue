@@ -10,26 +10,26 @@
 
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
       <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">账号管理</h3>
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ t('admin.users') || '账号管理' }}</h3>
         <button 
           @click="showAddModal = true" 
           :disabled="isLoading"
           class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 flex items-center gap-2 transition-colors"
         >
           <Icon icon="ph:user-plus-bold" class="w-5 h-5" />
-          添加账号
+          {{ t('admin.addAccount') || '添加账号' }}
         </button>
       </div>
       <div class="p-6">
         <div v-if="isLoading" class="py-12">
-          <LoadingSpinner text="加载用户列表..." />
+          <LoadingSpinner text="{{ t('admin.loadingUsers') || '加载用户列表...' }}" />
         </div>
         <div v-else-if="users.length === 0" class="py-12">
           <EmptyState
             icon="👥"
-            title="暂无账号"
-            description="点击上方按钮添加账号"
-            action-text="添加账号"
+            title="{{ t('admin.noAccounts') || '暂无账号' }}"
+            :description="t('admin.clickAddAccount') || '点击上方按钮添加账号'"
+            action-text="{{ t('admin.addAccount') || '添加账号' }}"
             @action="showAddModal = true"
           />
         </div>
@@ -44,10 +44,10 @@
             </div>
             <div class="flex-1">
               <p class="font-medium text-slate-700 dark:text-slate-300">{{ user.nickname || user.username }}</p>
-              <p class="text-sm text-slate-500">{{ user.email || '无邮箱' }}</p>
+              <p class="text-sm text-slate-500">{{ user.email || ('无' + (t('admin.email') || '邮箱')) }}</p>
             </div>
             <div class="px-3 py-1 rounded-full text-xs font-medium" :class="user.role === 'admin' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-slate-200 text-slate-600 dark:bg-slate-600 dark:text-slate-400'">
-              {{ user.role === 'admin' ? '管理员' : '用户' }}
+              {{ user.role === 'admin' ? (t('admin.admin') || '管理员') : (t('admin.user') || '用户') }}
             </div>
             <div class="flex items-center gap-2">
               <button @click="editUser(user)" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors">
@@ -70,57 +70,57 @@
       <div class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md">
         <div class="p-6 border-b border-slate-200 dark:border-slate-700">
           <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">
-            {{ editingUser ? '编辑账号' : '添加账号' }}
+            {{ editingUser ? (t('admin.editAccount') || '编辑账号') : (t('admin.addAccount') || '添加账号') }}
           </h3>
         </div>
         <form @submit.prevent="saveUser" class="p-6 space-y-4">
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">用户名</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ t('admin.username') || '用户名' }}</label>
             <input 
               v-model="userForm.username" 
               type="text" 
               required 
               :disabled="!!editingUser"
               class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white disabled:opacity-50 focus:ring-2 focus:ring-orange-500 outline-none"
-              placeholder="请输入用户名"
+              placeholder="请输入{{ t('admin.username') || '用户名' }}"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">昵称</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ t('admin.nickname') || '昵称' }}</label>
             <input 
               v-model="userForm.nickname" 
               type="text" 
               class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
-              placeholder="请输入昵称"
+              placeholder="请输入{{ t('admin.nickname') || '昵称' }}"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">邮箱</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ t('admin.email') || '邮箱' }}</label>
             <input 
               v-model="userForm.email" 
               type="email" 
               class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
-              placeholder="请输入邮箱"
+              placeholder="请输入{{ t('admin.email') || '邮箱' }}"
             />
           </div>
           <div v-if="!editingUser">
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">密码</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ t('admin.password') || '密码' }}</label>
             <input 
               v-model="userForm.password" 
               type="password" 
               required 
               class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
-              placeholder="请输入密码"
+              placeholder="请输入{{ t('admin.password') || '密码' }}"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">角色</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ t('admin.role') || '角色' }}</label>
             <select 
               v-model="userForm.role" 
               class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
             >
-              <option value="user">用户</option>
-              <option value="admin">管理员</option>
+              <option value="user">{{ t('admin.user') || '用户' }}</option>
+              <option value="admin">{{ t('admin.admin') || '管理员' }}</option>
             </select>
           </div>
           <div class="flex justify-end gap-3 pt-4">
@@ -129,7 +129,7 @@
               @click="closeModal" 
               class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
             >
-              取消
+              {{ t('common.cancel') || '取消' }}
             </button>
             <button 
               type="submit" 
@@ -141,9 +141,9 @@
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                保存中...
+                {{ t('common.saving') || '保存中...' }}
               </span>
-              <span v-else>保存</span>
+              <span v-else>{{ t('common.save') || '保存' }}</span>
             </button>
           </div>
         </form>
@@ -156,6 +156,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/stores/auth'
+import { usePageTexts } from '@/composables/useI18n'
 import { userApi } from '@/api'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import ErrorMessage from '@/components/ErrorMessage.vue'
@@ -163,6 +164,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import type { User } from '@/types'
 
 const authStore = useAuthStore()
+const { t } = usePageTexts()
 
 const users = ref<User[]>([])
 const showAddModal = ref(false)

@@ -21,30 +21,30 @@
 
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
       <div class="p-6 border-b border-slate-200 dark:border-slate-700">
-        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">导出数据</h3>
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ t('admin.exportData') || '导出数据' }}</h3>
       </div>
       <div class="p-6">
-        <p class="text-slate-600 dark:text-slate-400 mb-4">导出您的所有配置数据，包括分组、网站和设置。</p>
+        <p class="text-slate-600 dark:text-slate-400 mb-4">{{ t('admin.exportDescription') || '导出您的所有配置数据，包括分组、网站和设置。' }}</p>
         <button 
           @click="exportData" 
           :disabled="isExporting"
           class="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 flex items-center gap-2 disabled:opacity-50"
         >
           <Icon icon="ph:download-bold" class="w-5 h-5" />
-          {{ isExporting ? '导出中...' : '导出配置' }}
+          {{ isExporting ? (t('admin.exporting') || '导出中...') : (t('admin.exportConfig') || '导出配置') }}
         </button>
       </div>
     </div>
 
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
       <div class="p-6 border-b border-slate-200 dark:border-slate-700">
-        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">导入数据</h3>
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ t('admin.importData') || '导入数据' }}</h3>
       </div>
       <div class="p-6">
-        <p class="text-slate-600 dark:text-slate-400 mb-4">从之前导出的备份文件中恢复配置。</p>
+        <p class="text-slate-600 dark:text-slate-400 mb-4">{{ t('admin.importDescription') || '从之前导出的备份文件中恢复配置。' }}</p>
         <label class="px-6 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 cursor-pointer flex items-center gap-2 inline-flex">
           <Icon icon="ph:upload-bold" class="w-5 h-5" />
-          选择文件
+          {{ t('admin.selectFile') || '选择文件' }}
           <input type="file" accept=".json" @change="handleImport" class="hidden" :disabled="isImporting" />
         </label>
       </div>
@@ -52,26 +52,26 @@
 
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
       <div class="p-6 border-b border-slate-200 dark:border-slate-700">
-        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">导入说明</h3>
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ t('admin.importInstructions') || '导入说明' }}</h3>
       </div>
       <div class="p-6 text-slate-600 dark:text-slate-400 space-y-2 text-sm">
-        <p>• 支持导入 .json 格式的备份文件</p>
-        <p>• 导入将覆盖现有配置，请谨慎操作</p>
-        <p>• 建议在导入前先导出当前配置作为备份</p>
-        <p>• 图片文件需要单独上传</p>
+        <p>{{ t('admin.supportJson') || '• 支持导入 .json 格式的备份文件' }}</p>
+        <p>{{ t('admin.importOverwrite') || '• 导入将覆盖现有配置，请谨慎操作' }}</p>
+        <p>{{ t('admin.backupBeforeImport') || '• 建议在导入前先导出当前配置作为备份' }}</p>
+        <p>{{ t('admin.imagesSeparate') || '• 图片文件需要单独上传' }}</p>
       </div>
     </div>
 
     <div v-if="showConfirmModal" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div class="bg-white dark:bg-slate-800 rounded-xl w-full max-w-md p-6">
-        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">确认导入</h3>
-        <p class="text-slate-600 dark:text-slate-400 mb-6">导入将覆盖现有配置，此操作不可撤销。确定继续吗？</p>
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">{{ t('admin.confirmImport') || '确认导入' }}</h3>
+        <p class="text-slate-600 dark:text-slate-400 mb-6">{{ t('admin.importConfirmMessage') || '导入将覆盖现有配置，此操作不可撤销。确定继续吗？' }}</p>
         <div class="flex gap-3">
           <button @click="showConfirmModal = false" class="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">
-            取消
+            {{ t('common.cancel') || '取消' }}
           </button>
           <button @click="confirmImport" class="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600">
-            确认导入
+            {{ t('admin.confirmImport') || '确认导入' }}
           </button>
         </div>
       </div>
@@ -85,8 +85,10 @@ import { Icon } from '@iconify/vue'
 import { exportImportApi } from '@/api'
 import { useDataStore } from '@/stores/data'
 import { useSettingsStore } from '@/stores/settings'
+import { usePageTexts } from '@/composables/useI18n'
 import ErrorMessage from '@/components/ErrorMessage.vue'
 
+const { t } = usePageTexts()
 const dataStore = useDataStore()
 const settingsStore = useSettingsStore()
 

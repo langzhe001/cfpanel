@@ -12,17 +12,17 @@
 
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
       <div class="p-6 border-b border-slate-200 dark:border-slate-700">
-        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">公共图库</h3>
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ t('admin.publicGallery') || '公共图库' }}</h3>
       </div>
       <div class="p-6">
         <div v-if="loading" class="py-12">
-          <LoadingSpinner text="加载图片中..." />
+          <LoadingSpinner text="{{ t('admin.loadingImages') || '加载图片中...' }}" />
         </div>
         <div v-else-if="images.length === 0" class="py-12">
           <EmptyState
             icon="🖼️"
-            title="暂无公共图片"
-            description="管理员还未添加公共图片"
+            :title="t('admin.noPublicImages') || '暂无公共图片'"
+            :description="t('admin.adminNotAddedImages') || '管理员还未添加公共图片'"
           />
         </div>
         <div v-else class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -46,11 +46,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
+import { usePageTexts } from '@/composables/useI18n'
 import { galleryApi } from '@/api'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import ErrorMessage from '@/components/ErrorMessage.vue'
 import EmptyState from '@/components/EmptyState.vue'
 
+const { t } = usePageTexts()
 const images = ref<any[]>([])
 const loading = ref(false)
 const error = ref('')

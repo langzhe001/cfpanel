@@ -10,7 +10,7 @@
 
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
       <div class="p-6 border-b border-slate-200 dark:border-slate-700">
-        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">Open API</h3>
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ t('admin.openAPI') || 'Open API' }}</h3>
       </div>
       <div class="p-6 space-y-6">
         <!-- Token 管理区域 -->
@@ -51,7 +51,7 @@
             </div>
             <div v-else class="flex gap-2">
               <input
-                value="未生成 API Token"
+                value="{{ t('admin.noAPIToken') || '未生成 API Token' }}"
                 type="text"
                 readonly
                 class="flex-1 px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-500 font-mono"
@@ -69,11 +69,11 @@
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  生成中...
+                  {{ t('common.generating') || '生成中...' }}
                 </span>
                 <span v-else>
                   <Icon :icon="apiToken ? 'ph:arrow-clockwise-bold' : 'ph:key-bold'" class="w-5 h-5" />
-                  {{ apiToken ? '重新生成' : '生成 Token' }}
+                  {{ apiToken ? (t('admin.regenerate') || '重新生成') : (t('admin.generateToken') || '生成 Token') }}
                 </span>
               </button>
               <button 
@@ -88,18 +88,18 @@
             </div>
           </div>
           
-          <!-- 安全警告 -->
+          <!-- {{ t('admin.securityWarning') || '安全警告' }} -->
           <div class="mt-4 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
             <div class="flex items-start gap-3">
               <Icon icon="ph:warning-bold" class="w-5 h-5 text-yellow-500 mt-0.5" />
               <div class="text-sm">
-                <p class="font-medium text-yellow-700 dark:text-yellow-400 mb-1">安全警告</p>
+                <p class="font-medium text-yellow-700 dark:text-yellow-400 mb-1">{{ t('admin.securityWarning') || '安全警告' }}</p>
                 <ul class="text-yellow-600 dark:text-yellow-500 space-y-1 list-disc list-inside">
-                  <li>请妥善保管您的 API Token，不要泄露给他人</li>
-                  <li>Token 拥有完整的账户权限，请谨慎使用</li>
-                  <li>建议定期重新生成 Token 以增强安全性</li>
-                  <li>如发现 Token 泄露，请立即撤销</li>
-                  <li>Token 将在 90 天后自动过期</li>
+                  <li>{{ t('admin.keepTokenSecure') || '请妥善保管您的 API Token，不要泄露给他人' }}</li>
+                  <li>{{ t('admin.tokenFullAccess') || 'Token 拥有完整的账户权限，请谨慎使用' }}</li>
+                  <li>{{ t('admin.regularTokenRegen') || '建议定期重新生成 Token 以增强安全性' }}</li>
+                  <li>{{ t('admin.revokeIfLeaked') || '如发现 Token 泄露，请立即撤销' }}</li>
+                  <li>{{ t('admin.tokenExpire90Days') || 'Token 将在 90 天后自动过期' }}</li>
                 </ul>
               </div>
             </div>
@@ -107,20 +107,20 @@
         </div>
 
         <div class="border-t border-slate-200 dark:border-slate-700 pt-6">
-          <h4 class="font-medium text-slate-700 dark:text-slate-300 mb-4">API 使用示例</h4>
+          <h4 class="font-medium text-slate-700 dark:text-slate-300 mb-4">{{ t('admin.apiExamples') || 'API 使用示例' }}</h4>
           <div class="space-y-4">
             <div class="p-4 rounded-lg bg-slate-50 dark:bg-slate-900 font-mono text-sm">
-              <p class="text-slate-500 mb-2">获取分组列表</p>
+              <p class="text-slate-500 mb-2">{{ t('admin.getGroups') || '获取分组列表' }}</p>
               <pre class="text-slate-700 dark:text-slate-300">GET /api/groups
 Authorization: Bearer YOUR_TOKEN</pre>
             </div>
             <div class="p-4 rounded-lg bg-slate-50 dark:bg-slate-900 font-mono text-sm">
-              <p class="text-slate-500 mb-2">获取网站列表</p>
+              <p class="text-slate-500 mb-2">{{ t('admin.getItems') || '获取网站列表' }}</p>
               <pre class="text-slate-700 dark:text-slate-300">GET /api/items
 Authorization: Bearer YOUR_TOKEN</pre>
             </div>
             <div class="p-4 rounded-lg bg-slate-50 dark:bg-slate-900 font-mono text-sm">
-              <p class="text-slate-500 mb-2">创建分组</p>
+              <p class="text-slate-500 mb-2">{{ t('admin.createGroup') || '创建分组' }}</p>
               <pre class="text-slate-700 dark:text-slate-300">POST /api/groups
 Authorization: Bearer YOUR_TOKEN
 Content-Type: application/json
@@ -134,47 +134,47 @@ Content-Type: application/json
         </div>
 
         <div class="border-t border-slate-200 dark:border-slate-700 pt-6">
-          <h4 class="font-medium text-slate-700 dark:text-slate-300 mb-4">API 端点</h4>
+          <h4 class="font-medium text-slate-700 dark:text-slate-300 mb-4">{{ t('admin.apiEndpoints') || 'API 端点' }}</h4>
           <div class="space-y-3">
             <div class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-900">
               <span class="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded text-xs font-medium">GET</span>
               <code class="text-sm text-slate-600 dark:text-slate-400">/api/groups</code>
-              <span class="text-xs text-slate-500">获取分组列表</span>
+              <span class="text-xs text-slate-500">{{ t('admin.getGroups') || '获取分组列表' }}</span>
             </div>
             <div class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-900">
               <span class="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-xs font-medium">POST</span>
               <code class="text-sm text-slate-600 dark:text-slate-400">/api/groups</code>
-              <span class="text-xs text-slate-500">创建新分组</span>
+              <span class="text-xs text-slate-500">{{ t('admin.createNewGroup') || '创建新分组' }}</span>
             </div>
             <div class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-900">
               <span class="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 rounded text-xs font-medium">PUT</span>
               <code class="text-sm text-slate-600 dark:text-slate-400">/api/groups/{id}</code>
-              <span class="text-xs text-slate-500">更新分组</span>
+              <span class="text-xs text-slate-500">{{ t('admin.updateGroup') || '更新分组' }}</span>
             </div>
             <div class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-900">
               <span class="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded text-xs font-medium">DELETE</span>
               <code class="text-sm text-slate-600 dark:text-slate-400">/api/groups/{id}</code>
-              <span class="text-xs text-slate-500">删除分组</span>
+              <span class="text-xs text-slate-500">{{ t('admin.deleteGroup') || '删除分组' }}</span>
             </div>
             <div class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-900">
               <span class="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded text-xs font-medium">GET</span>
               <code class="text-sm text-slate-600 dark:text-slate-400">/api/items</code>
-              <span class="text-xs text-slate-500">获取网站列表</span>
+              <span class="text-xs text-slate-500">{{ t('admin.getItems') || '获取网站列表' }}</span>
             </div>
             <div class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-900">
               <span class="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-xs font-medium">POST</span>
               <code class="text-sm text-slate-600 dark:text-slate-400">/api/items</code>
-              <span class="text-xs text-slate-500">创建新网站</span>
+              <span class="text-xs text-slate-500">{{ t('admin.createNewItem') || '创建新网站' }}</span>
             </div>
             <div class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-900">
               <span class="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 rounded text-xs font-medium">PUT</span>
               <code class="text-sm text-slate-600 dark:text-slate-400">/api/items/{id}</code>
-              <span class="text-xs text-slate-500">更新网站</span>
+              <span class="text-xs text-slate-500">{{ t('admin.updateItem') || '更新网站' }}</span>
             </div>
             <div class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-900">
               <span class="px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded text-xs font-medium">DELETE</span>
               <code class="text-sm text-slate-600 dark:text-slate-400">/api/items/{id}</code>
-              <span class="text-xs text-slate-500">删除网站</span>
+              <span class="text-xs text-slate-500">{{ t('admin.deleteItem') || '删除网站' }}</span>
             </div>
           </div>
         </div>
@@ -188,10 +188,10 @@ Content-Type: application/json
         <p class="text-slate-600 dark:text-slate-400 mb-6">{{ confirmModalMessage }}</p>
         <div class="flex gap-3">
           <button @click="showConfirmModal = false" class="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">
-            取消
+            {{ t('common.cancel') || '取消' }}
           </button>
           <button @click="confirmModalAction" class="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
-            确认
+            {{ t('common.confirm') || '确认' }}
           </button>
         </div>
       </div>
@@ -202,12 +202,14 @@ Content-Type: application/json
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Icon } from '@iconify/vue'
+import { usePageTexts } from '@/composables/useI18n'
 import ErrorMessage from '@/components/ErrorMessage.vue'
 
 // 安全常量
 const TOKEN_EXPIRY_DAYS = 90
 const TOKEN_MASK_LENGTH = 8
 
+const { t } = usePageTexts()
 const apiToken = ref('')
 const tokenCreatedAt = ref<number | null>(null)
 const tokenExpiresAt = ref<number | null>(null)

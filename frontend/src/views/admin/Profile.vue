@@ -21,7 +21,7 @@
 
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
       <div class="p-6 border-b border-slate-200 dark:border-slate-700">
-        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">个人信息</h3>
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ profileTexts.title || '个人信息' }}</h3>
       </div>
       <form @submit.prevent="handleSubmit" class="p-6 space-y-6">
         <div class="flex items-center gap-6">
@@ -43,7 +43,7 @@
 
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">用户名</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ profileTexts.username || '用户名' }}</label>
             <input
               v-model="form.username"
               type="text"
@@ -52,28 +52,28 @@
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">昵称</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ profileTexts.nickname || '昵称' }}</label>
             <input
               v-model="form.nickname"
               type="text"
               class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
-              placeholder="请输入昵称"
+              :placeholder="profileTexts.nicknamePlaceholder || '请输入昵称'"
             />
           </div>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">邮箱</label>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ profileTexts.email || '邮箱' }}</label>
           <input
             v-model="form.email"
             type="email"
             class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
-            placeholder="请输入邮箱"
+            :placeholder="profileTexts.emailPlaceholder || '请输入邮箱'"
           />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">语言</label>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ profileTexts.language || '语言' }}</label>
           <select
             v-model="form.language"
             class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
@@ -113,34 +113,34 @@
 
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
       <div class="p-6 border-b border-slate-200 dark:border-slate-700">
-        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">修改密码</h3>
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ profileTexts.changePassword || '修改密码' }}</h3>
       </div>
       <form @submit.prevent="handlePasswordChange" class="p-6 space-y-6">
         <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">当前密码</label>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ profileTexts.currentPassword || '当前密码' }}</label>
           <input
             v-model="passwordForm.oldPassword"
             type="password"
             class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
-            placeholder="请输入当前密码"
+            :placeholder="profileTexts.currentPasswordPlaceholder || '请输入当前密码'"
           />
         </div>
         <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">新密码</label>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ profileTexts.newPassword || '新密码' }}</label>
           <input
             v-model="passwordForm.newPassword"
             type="password"
             class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
-            placeholder="请输入新密码"
+            :placeholder="profileTexts.newPasswordPlaceholder || '请输入新密码'"
           />
         </div>
         <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">确认新密码</label>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ profileTexts.confirmNewPassword || '确认新密码' }}</label>
           <input
             v-model="passwordForm.confirmPassword"
             type="password"
             class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
-            placeholder="请再次输入新密码"
+            placeholder="请再次输入{{ profileTexts.newPassword || '新密码' }}"
           />
         </div>
         <div class="flex justify-end">
@@ -156,7 +156,7 @@
               </svg>
               修改中...
             </span>
-            <span v-else>修改密码</span>
+            <span v-else>{{ profileTexts.changePassword || '修改密码' }}</span>
           </button>
         </div>
       </form>
@@ -168,6 +168,7 @@
 import { reactive, ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useGlobalSettingsStore } from '@/stores/globalSettings'
+import { usePageTexts } from '@/composables/useI18n'
 import { userApi } from '@/api'
 import ErrorMessage from '@/components/ErrorMessage.vue'
 import { sanitizeNickname, validateEmail, containsXss } from '@/utils/security'
@@ -183,6 +184,7 @@ const showSuccessMessage = (message: string) => {
 
 const authStore = useAuthStore()
 const globalSettingsStore = useGlobalSettingsStore()
+const { profile: profileTexts, t } = usePageTexts()
 
 const error = ref('')
 const isSaving = ref(false)
@@ -215,7 +217,7 @@ const handleSubmit = async () => {
     
     // 安全验证
     if (form.nickname && containsXss(form.nickname)) {
-      error.value = '昵称包含非法字符'
+      error.value = (profileTexts.nickname || '昵称') + '包含非法字符'
       return
     }
     

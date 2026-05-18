@@ -17,23 +17,23 @@
     <template v-else>
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
         <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">分组管理</h3>
+          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ groupsTexts.title || (groupsTexts.group || '分组') + '管理' }}</h3>
           <button 
             @click="showGroupModal = true" 
             :disabled="isSaving"
             class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 flex items-center gap-2 transition-colors"
           >
             <Icon icon="ph:plus-bold" class="w-5 h-5" />
-            添加分组
+            {{ groupsTexts.addGroup || ('添加' + (groupsTexts.group || '分组')) }}
           </button>
         </div>
         <div class="p-6">
           <EmptyState
             v-if="groups.length === 0"
             icon="📁"
-            title="暂无分组"
-            description="点击上方按钮添加第一个分组"
-            action-text="添加分组"
+            :title="groupsTexts.noGroups || ('暂无' + (groupsTexts.group || '分组'))"
+            :description="groupsTexts.addFirstGroup || ('点击上方按钮添加第一个' + (groupsTexts.group || '分组'))"
+            :action-text="groupsTexts.addGroup || ('添加' + (groupsTexts.group || '分组'))"
             @action="showGroupModal = true"
           />
           <div v-else class="space-y-3">
@@ -48,7 +48,7 @@
               </div>
               <div class="flex-1">
                 <p class="font-medium text-slate-700 dark:text-slate-300">{{ group.name }}</p>
-                <p class="text-sm text-slate-500">{{ getItemCount(group.id) }} 个网站</p>
+                <p class="text-sm text-slate-500">{{ getItemCount(group.id) }} {{ groupsTexts.websites || '个网站' }}</p>
               </div>
               <div class="flex items-center gap-2">
                 <button @click="editGroup(group)" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors">
@@ -65,23 +65,23 @@
 
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
         <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">网站管理</h3>
+          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ groupsTexts.websiteTitle || '网站管理' }}</h3>
           <button 
             @click="showItemModal = true" 
             :disabled="isSaving || groups.length === 0"
             class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 flex items-center gap-2 transition-colors"
           >
             <Icon icon="ph:plus-bold" class="w-5 h-5" />
-            添加网站
+            {{ groupsTexts.addWebsite || '添加网站' }}
           </button>
         </div>
         <div class="p-6">
           <EmptyState
             v-if="items.length === 0"
             icon="🔗"
-            title="暂无网站"
-            description="点击上方按钮添加第一个网站"
-            action-text="添加网站"
+            :title="groupsTexts.noWebsites || '暂无网站'"
+            :description="groupsTexts.addFirstWebsite || '点击上方按钮添加第一个网站'"
+            :action-text="groupsTexts.addWebsite || '添加网站'"
             @action="showItemModal = true"
           />
           <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -114,21 +114,21 @@
       </div>
     </template>
 
-    <Modal v-model="showGroupModal" :title="editingGroup ? '编辑分组' : '添加分组'" icon="📁" size="sm" @close="closeGroupModal">
+    <Modal v-model="showGroupModal" :title="editingGroup ? (groupsTexts.editGroup || '编辑分组') : (groupsTexts.addGroup || '添加分组')" icon="📁" size="sm" @close="closeGroupModal">
       <div class="p-6 space-y-4">
         <form @submit.prevent="saveGroup" class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">名称</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ groupsTexts.name || '名称' }}</label>
             <input 
               v-model="groupForm.name" 
               type="text" 
               required 
               class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
-              placeholder="请输入分组名称"
+              :placeholder="groupsTexts.namePlaceholder || ('请输入' + (groupsTexts.group || '分组') + '名称')"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">图标 (Iconify)</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ groupsTexts.icon || '图标' }} (Iconify)</label>
             <input 
               v-model="groupForm.icon" 
               type="text" 
@@ -142,7 +142,7 @@
               @click="closeGroupModal" 
               class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
             >
-              取消
+              {{ t('common.cancel') || '取消' }}
             </button>
             <button 
               type="submit" 
@@ -154,20 +154,20 @@
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                保存中...
+                {{ t('common.saving') || '保存中...' }}
               </span>
-              <span v-else>保存</span>
+              <span v-else>{{ t('common.save') || '保存' }}</span>
             </button>
           </div>
         </form>
       </div>
     </Modal>
 
-    <Modal v-model="showItemModal" :title="editingItem ? '编辑网站' : '添加网站'" icon="🌐" size="md" @close="closeItemModal">
+    <Modal v-model="showItemModal" :title="editingItem ? (groupsTexts.editWebsite || '编辑网站') : (groupsTexts.addWebsite || '添加网站')" icon="🌐" size="md" @close="closeItemModal">
       <div class="p-6 space-y-4 overflow-y-auto max-h-[70vh]">
         <form @submit.prevent="saveItem" class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">名称</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ groupsTexts.name || '名称' }}</label>
             <input 
               v-model="itemForm.name" 
               type="text" 
@@ -177,7 +177,7 @@
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">网址</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ groupsTexts.url || '网址' }}</label>
             <input 
               v-model="itemForm.url" 
               type="url" 
@@ -187,7 +187,7 @@
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">图标 (Iconify)</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ groupsTexts.icon || '图标' }} (Iconify)</label>
             <input 
               v-model="itemForm.icon" 
               type="text" 
@@ -196,16 +196,16 @@
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">描述</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ groupsTexts.description || '描述' }}</label>
             <input 
               v-model="itemForm.description" 
               type="text" 
               class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
-              placeholder="网站描述"
+              :placeholder="'网站' + (groupsTexts.description || '描述')"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">卡片颜色</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ groupsTexts.color || '卡片颜色' }}</label>
             <div class="flex items-center gap-3">
               <input
                 v-model="itemForm.color"
@@ -231,24 +231,24 @@
             </div>
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">分组</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ groupsTexts.group || '分组' }}</label>
             <select 
               v-model="itemForm.groupId" 
               required 
               class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
             >
-              <option value="">请选择分组</option>
+              <option value="">请选择{{ groupsTexts.group || '分组' }}</option>
               <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
             </select>
           </div>
           <div class="flex items-center gap-4">
             <label class="flex items-center gap-2">
               <input v-model="itemForm.openInNewTab" type="checkbox" class="w-4 h-4" />
-              <span class="text-sm text-slate-700 dark:text-slate-300">新标签页打开</span>
+              <span class="text-sm text-slate-700 dark:text-slate-300">{{ groupsTexts.openInNewTab || '新标签页打开' }}</span>
             </label>
             <label class="flex items-center gap-2">
               <input v-model="itemForm.showAsWindow" type="checkbox" class="w-4 h-4" />
-              <span class="text-sm text-slate-700 dark:text-slate-300">小窗口模式</span>
+              <span class="text-sm text-slate-700 dark:text-slate-300">{{ groupsTexts.showAsWindow || '小窗口模式' }}</span>
             </label>
           </div>
           <div class="flex justify-end gap-3 pt-4">
@@ -257,7 +257,7 @@
               @click="closeItemModal" 
               class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
             >
-              取消
+              {{ t('common.cancel') || '取消' }}
             </button>
             <button 
               type="submit" 
@@ -269,9 +269,9 @@
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                保存中...
+                {{ t('common.saving') || '保存中...' }}
               </span>
-              <span v-else>保存</span>
+              <span v-else>{{ t('common.save') || '保存' }}</span>
             </button>
           </div>
         </form>
@@ -284,6 +284,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useDataStore } from '@/stores/data'
+import { usePageTexts } from '@/composables/useI18n'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import ErrorMessage from '@/components/ErrorMessage.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -292,6 +293,7 @@ import { sanitizeUrl, containsXss, escapeHtml } from '@/utils/security'
 import type { Group, Item } from '@/types'
 
 const dataStore = useDataStore()
+const { groups: groupsTexts, t } = usePageTexts()
 
 const showGroupModal = ref(false)
 const showItemModal = ref(false)
@@ -351,12 +353,12 @@ const saveGroup = async () => {
     
     // 安全验证
     if (!groupForm.name.trim()) {
-      console.error('分组名称不能为空')
+      console.error((groupsTexts.group || '分组') + '名称不能为空')
       return
     }
     
     if (containsXss(groupForm.name)) {
-      console.error('分组名称包含非法字符')
+      console.error((groupsTexts.group || '分组') + '名称包含非法字符')
       return
     }
     
@@ -372,19 +374,19 @@ const saveGroup = async () => {
     }
     closeGroupModal()
   } catch (error: any) {
-    console.error('保存分组失败:', error)
+    console.error('保存' + (groupsTexts.group || '分组') + '失败:', error)
   } finally {
     isSaving.value = false
   }
 }
 
 const deleteGroup = async (id: string) => {
-  if (!confirm('确定要删除这个分组吗？该分组下的所有网站也将被删除。')) return
+  if (!confirm('确定要删除这个' + (groupsTexts.group || '分组') + '吗？该' + (groupsTexts.group || '分组') + '下的所有网站也将被删除。')) return
   try {
     isSaving.value = true
     await dataStore.deleteGroup(id)
   } catch (error: any) {
-    console.error('删除分组失败:', error)
+    console.error('删除' + (groupsTexts.group || '分组') + '失败:', error)
   } finally {
     isSaving.value = false
   }
@@ -434,7 +436,7 @@ const saveItem = async () => {
     }
     
     if (containsXss(itemForm.description || '')) {
-      console.error('网站描述包含非法字符')
+      console.error('网站' + (groupsTexts.description || '描述') + '包含非法字符')
       return
     }
     

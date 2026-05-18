@@ -12,22 +12,22 @@
 
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
       <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">我的图库</h3>
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ t('admin.gallery') || '我的图库' }}</h3>
         <label class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 cursor-pointer flex items-center gap-2 transition-colors">
           <Icon icon="ph:upload-bold" class="w-5 h-5" />
-          上传图片
+          {{ t('admin.uploadImage') || '上传图片' }}
           <input type="file" accept="image/*" multiple @change="handleUpload" class="hidden" />
         </label>
       </div>
       <div class="p-6">
         <div v-if="loading" class="py-12">
-          <LoadingSpinner text="加载图片中..." />
+          <LoadingSpinner text="{{ t('admin.loadingImages') || '加载图片中...' }}" />
         </div>
         <div v-else-if="images.length === 0" class="py-12">
           <EmptyState
             icon="🖼️"
-            title="暂无图片"
-            description="点击上方按钮上传图片"
+            :title="t('common.noImages') || '暂无图片'"
+            :description="t('admin.clickUploadImage') || '点击上方按钮上传图片'"
           />
         </div>
         <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -55,11 +55,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
+import { usePageTexts } from '@/composables/useI18n'
 import { galleryApi } from '@/api'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import ErrorMessage from '@/components/ErrorMessage.vue'
 import EmptyState from '@/components/EmptyState.vue'
 
+const { t } = usePageTexts()
 const images = ref<any[]>([])
 const loading = ref(false)
 const error = ref('')

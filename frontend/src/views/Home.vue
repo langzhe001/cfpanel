@@ -21,7 +21,7 @@
         <button 
           @click="toggleTheme"
           class="p-2 rounded-full hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all hover:scale-110"
-          :title="isDark ? '切换到浅色模式' : '切换到深色模式'"
+          :title="isDark ? (t('nav.lightMode') || '切换到浅色模式') : (t('nav.darkMode') || '切换到深色模式')"
         >
           <svg v-if="isDark" class="w-5 h-5 text-slate-700 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
@@ -46,7 +46,7 @@
     <main class="max-w-7xl mx-auto px-4 py-8 relative z-10">
       <div class="flex flex-col items-center justify-center py-12 mb-8">
         <div class="flex items-center gap-4 mb-6">
-          <h1 class="text-5xl md:text-6xl font-bold text-white drop-shadow-lg">Sun-Panel</h1>
+          <h1 class="text-5xl md:text-6xl font-bold text-white drop-shadow-lg">{{ globalSettingsStore.websiteTitle }}</h1>
           <div class="text-right">
             <div class="text-3xl md:text-4xl font-bold text-white drop-shadow-lg">{{ currentTime }}</div>
             <div class="text-sm text-white/80 drop-shadow">{{ currentDate }}</div>
@@ -64,7 +64,7 @@
               v-model="searchQuery"
               @keyup.enter="doSearch"
               type="text"
-              placeholder="请输入搜索内容"
+              :placeholder="homeTexts.searchPlaceholder || '请输入搜索内容'"
               class="w-full px-14 py-4 text-lg rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl border border-white/30 dark:border-slate-700/50 focus:outline-none focus:ring-2 focus:ring-orange-400/50 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 shadow-lg"
             />
             <button 
@@ -90,13 +90,13 @@
       />
 
       <div v-if="isLoading" class="py-20">
-        <LoadingSpinner text="加载中..." />
+        <LoadingSpinner :text="t('common.loading') || '加载中...'" />
       </div>
 
       <div v-else-if="!isLoggedIn || groups.length === 0" class="flex flex-col items-center justify-center py-20">
         <div class="text-6xl mb-4">🌞</div>
         <h2 class="text-2xl font-bold text-white drop-shadow-lg mb-2">{{ homeTexts.welcome || '欢迎使用 SunPanel' }}</h2>
-        <p class="text-white/80 drop-shadow mb-6">开始添加您的第一个分组和网站吧</p>
+        <p class="text-white/80 drop-shadow mb-6">{{ homeTexts.addFirstGroup || '开始添加您的第一个分组和网站吧' }}</p>
         <button 
           v-if="isLoggedIn"
           @click="openAdminModal"
@@ -109,7 +109,7 @@
           @click="goLogin"
           class="px-6 py-3 text-white bg-orange-500 rounded-full hover:bg-orange-600 transition-colors shadow-lg"
         >
-          登录后开始配置
+          {{ homeTexts.loginToConfigure || '登录后开始配置' }}
         </button>
       </div>
 
@@ -165,7 +165,7 @@
       </div>
     </main>
 
-    <Modal v-model="adminModalOpen" :title="globalSettingsStore.websiteTitle + ' 管理后台'" icon="☀️" @close="closeAdminModal">
+    <Modal v-model="adminModalOpen" :title="globalSettingsStore.websiteTitle + ' ' + (t('nav.admin') || '管理后台')" icon="☀️" @close="closeAdminModal">
       <div class="w-full h-full min-h-[400px] sm:min-h-[500px] lg:min-h-[600px]">
         <iframe 
           :src="adminUrl" 
@@ -208,7 +208,7 @@ const settingsStore = useSettingsStore()
 const authStore = useAuthStore()
 const dataStore = useDataStore()
 const globalSettingsStore = useGlobalSettingsStore()
-const { home: homeTexts, nav: navTexts } = usePageTexts()
+const { home: homeTexts, nav: navTexts, t } = usePageTexts()
 
 const searchQuery = ref('')
 const activeWindow = ref<Item | null>(null)
@@ -229,10 +229,30 @@ const updateTime = () => {
   currentTime.value = `${hours}:${minutes}:${seconds}`
   
   const weekdays = ['日', '一', '二', '三', '四', '五', '六']
+  const weekdaysEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const weekdaysJa = ['日', '月', '火', '水', '木', '金', '土']
+  const weekdaysKo = ['일', '월', '화', '수', '목', '금', '토']
+  
+  const weekdayMap: Record<string, string[]> = {
+    'zh-CN': weekdays,
+    'en-US': weekdaysEn,
+    'ja-JP': weekdaysJa,
+    'ko-KR': weekdaysKo
+  }
+  
+  const weekdayList = weekdayMap[globalSettingsStore.currentLanguage] || weekdays
   const month = now.getMonth() + 1
   const day = now.getDate()
-  const weekday = weekdays[now.getDay()]
-  currentDate.value = `${month}-${day} 星期${weekday}`
+  const weekday = weekdayList[now.getDay()]
+  
+  const dateFormatMap: Record<string, string> = {
+    'zh-CN': `${month}-${day} 星期${weekday}`,
+    'en-US': `${month}/${day} ${weekday}`,
+    'ja-JP': `${month}月${day}日 (${weekday})`,
+    'ko-KR': `${month}월 ${day}일 (${weekday})`
+  }
+  
+  currentDate.value = dateFormatMap[globalSettingsStore.currentLanguage] || `${month}-${day} 星期${weekday}`
 }
 
 const openAdminModal = () => {

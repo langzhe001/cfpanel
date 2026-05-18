@@ -558,18 +558,33 @@ interface MiddlewareResult {
   session?: Session
 }
 
-const authenticate = async (request: Request, env: Env, corsHeaders: Record<string, string>): Promise<MiddlewareResult> => {
+const authenticate = async (request: Request, env: Env, corsHeaders: Record<string, string>, requestId?: string): Promise<MiddlewareResult> => {
+  log(`[AUTH] 开始认证`, 'info', requestId)
+  
   const token = verifyToken(request)
+  log(`[AUTH] Token: ${token ? '存在' : '不存在'}`, 'info', requestId)
+  
   if (!token) {
     return { success: false, response: errorResponse('未登录', 401, corsHeaders) }
   }
 
   const session = await d1Sessions.getById(env, token)
+  log(`[AUTH] Session: ${session ? '存在' : '不存在'}`, 'info', requestId)
+  
   if (!session) {
     return { success: false, response: errorResponse('Token 无效', 401, corsHeaders) }
   }
 
-  return { success: true, session }
+  log(`[AUTH] Session ID: ${session.id}, User ID: ${session.user_id}`, 'info', requestId)
+  
+  if (!session.id) {
+    return { success: false, response: errorResponse('会话ID无效', 401, corsHeaders) }
+  }
+
+  log(`[AUTH] 准备返回成功结果`, 'info', requestId)
+  const result = { success: true, session }
+  log(`[AUTH] 返回结果: success=${result.success}, session=${result.session ? '存在' : '不存在'}`, 'info', requestId)
+  return result
 }
 
 const validateCsrf = async (request: Request, env: Env, corsHeaders: Record<string, string>, session: Session, requestId?: string): Promise<MiddlewareResult> => {
@@ -609,19 +624,28 @@ const d1Sessions = {
   },
 
   getById: async (env: Env, id: string): Promise<Session | null> => {
+    console.log(`[d1Sessions.getById] 会话ID: ${id}`)
     const result = await env.SUNPANEL_DB.prepare(`
       SELECT id, user_id, username, role, csrf_token, expires_at, created_at
       FROM sessions WHERE id = ?
     `).bind(id).first()
+    console.log(`[d1Sessions.getById] 查询结果: ${result ? JSON.stringify(result) : 'null'}`)
 
     if (!result) return null
+    
+    if (!result.id) {
+      console.log(`[d1Sessions.getById] 会话ID为空`)
+      return null
+    }
 
     const now = Date.now()
     if (result.expires_at && now > result.expires_at) {
+      console.log(`[d1Sessions.getById] 会话已过期`)
       await d1Sessions.delete(env, id)
       return null
     }
 
+    console.log(`[d1Sessions.getById] 返回会话: id=${result.id}, user_id=${result.user_id}`)
     return result as Session
   },
 
@@ -896,12 +920,14 @@ const d1Items = {
 
 const d1Settings = {
   get: async (env: Env, userId: number = 1): Promise<Settings> => {
+    console.log(`[d1Settings.get] 用户ID: ${userId}`)
     const result = await env.SUNPANEL_DB.prepare(`
       SELECT theme, language, wallpaper, wallpaper_type, show_search_bar, search_engine,
              items_per_row, mobile_items_per_row, tablet_items_per_row, desktop_items_per_row,
              show_group_names, custom_css, custom_js, created_at
       FROM settings WHERE user_id = ?
     `).bind(userId).first()
+    console.log(`[d1Settings.get] 查询结果: ${result ? '存在' : '不存在'}`)
 
     if (!result) {
       const now = new Date().toISOString()
@@ -1141,6 +1167,16 @@ export default {
     const corsHeaders = getCorsHeaders(request, env)
 
     log(`请求开始 - Method: ${method}, Path: ${url.pathname}, Origin: ${request.headers.get('Origin') || 'unknown'}`, 'info', requestId)
+    
+    if (url.pathname === '/api/users/profile' && method === 'PUT') {
+      log(`[DEBUG] PUT /api/users/profile 请求已接收`, 'info', requestId)
+      const authHeader = request.headers.get('Authorization')
+      log(`[DEBUG] Authorization header: ${authHeader ? '存在' : '不存在'}`, 'info', requestId)
+      const csrfHeader = request.headers.get('X-CSRF-Token')
+      log(`[DEBUG] X-CSRF-Token header: ${csrfHeader ? '存在' : '不存在'}`, 'info', requestId)
+      const cookieHeader = request.headers.get('Cookie')
+      log(`[DEBUG] Cookie header: ${cookieHeader ? '存在' : '不存在'}`, 'info', requestId)
+    }
 
     if (method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders })
@@ -1328,6 +1364,8 @@ export default {
 
           const session = await d1Sessions.create(env, Number(result.id), result.username, result.role)
 
+          const settings = await d1Settings.get(env, Number(result.id))
+
           await auditLog(env, 'LOGIN', {
             userId: Number(result.id),
             username: result.username,
@@ -1359,7 +1397,8 @@ export default {
                 id: String(result.id),
                 username: result.username,
                 nickname: result.nickname || '用户',
-                role: result.role
+                role: result.role,
+                language: settings.language || 'zh-CN'
               }
             },
             requestId
@@ -2000,18 +2039,22 @@ export default {
       }
 
       if (path === '/users/profile' && method === 'GET') {
-        const authResult = await authenticate(request, env, corsHeaders)
+        const authResult = await authenticate(request, env, corsHeaders, requestId)
         if (!authResult.success) return authResult.response!
+        
+        if (!authResult.session) {
+          return errorResponse('会话无效', 401, corsHeaders, requestId)
+        }
 
         const user = await env.SUNPANEL_DB.prepare(`
           SELECT id, username, nickname, role, avatar, email FROM users WHERE id = ?
-        `).bind(authResult.session!.user_id).first()
+        `).bind(authResult.session.user_id).first()
 
         if (!user) {
           return errorResponse('用户不存在', 404, corsHeaders, requestId)
         }
 
-        const settings = await d1Settings.get(env, authResult.session!.user_id)
+        const settings = await d1Settings.get(env, authResult.session.user_id)
 
         return jsonResponse({
           id: user.id.toString(),
@@ -2097,11 +2140,94 @@ export default {
         }, 201, corsHeaders, requestId)
       }
 
+      if (path === '/users/profile' && method === 'PUT') {
+        log(`[PUT /users/profile] 进入端点处理`, 'info', requestId)
+        
+        try {
+          log(`[PUT /users/profile] 开始认证`, 'info', requestId)
+          const authResult = await authenticate(request, env, corsHeaders, requestId)
+          log(`[PUT /users/profile] 认证完成, 结果: ${authResult.success}`, 'info', requestId)
+          
+          if (!authResult.success) {
+            log(`[PUT /users/profile] 认证失败`, 'warn', requestId)
+            return authResult.response!
+          }
+          
+          log(`[PUT /users/profile] 认证成功, 检查会话`, 'info', requestId)
+          
+          if (!authResult.session) {
+            log(`[PUT /users/profile] 会话为空`, 'warn', requestId)
+            return errorResponse('会话无效', 401, corsHeaders, requestId)
+          }
+          
+          log(`[PUT /users/profile] 会话有效, ID: ${authResult.session.id}, UserID: ${authResult.session.user_id}`, 'info', requestId)
+          
+          log(`[PUT /users/profile] 开始CSRF验证`, 'info', requestId)
+          const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session, requestId)
+          log(`[PUT /users/profile] CSRF验证完成, 结果: ${csrfResult.success}`, 'info', requestId)
+          
+          if (!csrfResult.success) {
+            log(`[PUT /users/profile] CSRF验证失败`, 'warn', requestId)
+            return csrfResult.response!
+          }
+
+          log(`[PUT /users/profile] CSRF验证成功, 开始读取请求体`, 'info', requestId)
+          
+          const body = await request.json()
+          log(`[PUT /users/profile] 请求体: ${JSON.stringify(body)}`, 'info', requestId)
+          
+          const { nickname, email, avatar, language } = body
+
+          log(`[PUT /users/profile] 更新用户ID: ${authResult.session.user_id}, 语言: ${language}`, 'info', requestId)
+          
+          log(`[PUT /users/profile] 开始更新 users 表`, 'info', requestId)
+          await env.SUNPANEL_DB.prepare(`
+            UPDATE users SET nickname = ?, email = ?, avatar = ?, updated_at = ? WHERE id = ?
+          `).bind(nickname || null, email || null, avatar || null, new Date().toISOString(), authResult.session.user_id).run()
+          log(`[PUT /users/profile] users 表更新成功`, 'info', requestId)
+
+          if (language) {
+            log(`[PUT /users/profile] 开始更新 settings 表语言: ${language}`, 'info', requestId)
+            const updateResult = await d1Settings.update(env, { language }, authResult.session.user_id)
+            log(`[PUT /users/profile] settings 表更新成功: ${JSON.stringify(updateResult)}`, 'info', requestId)
+          }
+
+          log(`[PUT /users/profile] 开始查询更新后的用户信息`, 'info', requestId)
+          const updatedUser = await env.SUNPANEL_DB.prepare(`
+            SELECT id, username, nickname, email, avatar, role FROM users WHERE id = ?
+          `).bind(authResult.session.user_id).first()
+
+          if (!updatedUser) {
+            log(`[PUT /users/profile] 用户不存在`, 'warn', requestId)
+            return errorResponse('用户不存在', 404, corsHeaders, requestId)
+          }
+
+          log(`[PUT /users/profile] 开始获取 settings`, 'info', requestId)
+          const settings = await d1Settings.get(env, authResult.session.user_id)
+          log(`[PUT /users/profile] 获取 settings 成功: ${settings.language}`, 'info', requestId)
+
+          log(`[PUT /users/profile] 更新成功`, 'info', requestId)
+          
+          return jsonResponse({
+            id: updatedUser.id.toString(),
+            username: updatedUser.username,
+            nickname: updatedUser.nickname || '用户',
+            email: updatedUser.email || '',
+            avatar: updatedUser.avatar || '',
+            role: updatedUser.role,
+            language: settings.language || 'zh-CN'
+          }, 200, corsHeaders, requestId)
+        } catch (error: any) {
+          log(`[PUT /users/profile] 错误: ${error.message}, 堆栈: ${error.stack}`, 'error', requestId)
+          return errorResponse('更新失败: ' + error.message, 500, corsHeaders, requestId)
+        }
+      }
+
       if (path.startsWith('/users/') && method === 'PUT') {
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) return authResult.response!
 
-        const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
+        const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session, requestId)
         if (!csrfResult.success) return csrfResult.response!
 
         const sessionUser = await env.SUNPANEL_DB.prepare(`
@@ -2162,34 +2288,6 @@ export default {
         await env.SUNPANEL_DB.prepare(`DELETE FROM settings WHERE user_id = ?`).bind(userId).run()
 
         return jsonResponse({ success: true, message: '删除成功' }, 200, corsHeaders, requestId)
-      }
-
-      if (path === '/users/profile' && method === 'PUT') {
-        const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
-
-        const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
-        if (!csrfResult.success) return csrfResult.response!
-
-        const body = await request.json()
-        const { nickname, email, avatar } = body
-
-        await env.SUNPANEL_DB.prepare(`
-          UPDATE users SET nickname = ?, email = ?, avatar = ?, updated_at = ? WHERE id = ?
-        `).bind(nickname || null, email || null, avatar || null, new Date().toISOString(), authResult.session!.user_id).run()
-
-        const updatedUser = await env.SUNPANEL_DB.prepare(`
-          SELECT id, username, nickname, email, avatar, role FROM users WHERE id = ?
-        `).bind(authResult.session!.user_id).first()
-
-        return jsonResponse({
-          id: updatedUser.id.toString(),
-          username: updatedUser.username,
-          nickname: updatedUser.nickname || '用户',
-          email: updatedUser.email || '',
-          avatar: updatedUser.avatar || '',
-          role: updatedUser.role
-        }, 200, corsHeaders, requestId)
       }
 
       if (path === '/users/change-password' && method === 'POST') {
@@ -2562,9 +2660,12 @@ export default {
       return errorResponse('Not Found', 404, corsHeaders, requestId)
 
     } catch (error: any) {
-      log(`服务器错误: ${error.message}`, 'error', requestId)
+      const errorName = error.name || 'UnknownError'
+      const errorMsg = error.message || 'Unknown error'
+      const errorStack = error.stack || 'No stack trace'
+      log(`服务器错误 - 名称: ${errorName}, 消息: ${errorMsg}, 堆栈: ${errorStack}`, 'error', requestId)
       const isProduction = env.ENVIRONMENT === 'production'
-      const errorMessage = isProduction ? 'Internal Server Error' : error.message || 'Internal Server Error'
+      const errorMessage = isProduction ? 'Internal Server Error' : `${errorName}: ${errorMsg}`
       return errorResponse(errorMessage, 500, corsHeaders, requestId)
     }
   }
