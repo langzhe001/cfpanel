@@ -373,6 +373,11 @@ export const globalSettingsApi = {
     setCached(cacheKey, res)
     return res
   },
+  getAll: async () => {
+    console.log('[globalSettingsApi] 获取所有语言的全局设置')
+    const res = await api.get<APIResponse<GlobalSettings[]>>('/global-settings/all')
+    return res
+  },
   update: (data: Partial<GlobalSettings> & { language: string }) => {
     console.log('[globalSettingsApi] 更新设置，清除缓存:', data.language)
     // 清除该语言的缓存
@@ -393,6 +398,12 @@ export const globalSettingsApi = {
   create: (data: Partial<GlobalSettings> & { language: string }) => {
     // 创建新语言时不需要清除现有缓存
     return api.post('/global-settings', data)
+  },
+  delete: (language: string) => {
+    console.log('[globalSettingsApi] 删除语言设置:', language)
+    // 清除该语言的缓存
+    clearCache(`global_settings_${language}`)
+    return api.delete('/global-settings', { params: { language } })
   },
   clearAllCache: () => {
     console.log('[globalSettingsApi] 清除所有全局设置缓存')

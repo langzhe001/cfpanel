@@ -1,23 +1,12 @@
 <template>
   <div class="space-y-6">
     <ErrorMessage
-      v-if="error"
-      :message="error"
-      type="error"
+      v-if="error || successMessage"
+      :message="error || successMessage"
+      :type="error ? 'error' : 'success'"
       :closable="true"
-      @close="error = ''"
+      @close="clearMessages"
     />
-    <div 
-      v-if="showSuccess" 
-      class="p-4 rounded-lg bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800"
-    >
-      <div class="flex items-center gap-3">
-        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-        </svg>
-        <p class="text-green-600 dark:text-green-400">{{ successMessage }}</p>
-      </div>
-    </div>
 
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
       <div class="p-6 border-b border-slate-200 dark:border-slate-700">
@@ -104,6 +93,11 @@ const showSuccessMessage = (message: string) => {
   successMessage.value = message
   showSuccess.value = true
   setTimeout(() => { showSuccess.value = false }, 3000)
+}
+
+const clearMessages = () => {
+  error.value = ''
+  successMessage.value = ''
 }
 
 const exportData = async () => {

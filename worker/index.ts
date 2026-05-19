@@ -1106,7 +1106,17 @@ const d1GlobalSettings = {
     footerText: string
   }>): Promise<GlobalSettings | null> => {
     const existing = await d1GlobalSettings.get(env, language)
-    if (!existing) return null
+    
+    // 如果记录不存在，创建新记录
+    if (!existing) {
+      return await d1GlobalSettings.create(env, {
+        language,
+        websiteTitle: data.websiteTitle || 'SunPanel',
+        websiteDescription: data.websiteDescription || '',
+        pageTexts: data.pageTexts || {},
+        footerText: data.footerText || ''
+      })
+    }
 
     const now = new Date().toISOString()
     const merged = {
@@ -1889,6 +1899,51 @@ export default {
           pageTexts: created.pageTexts,
           footerText: created.footerText
         }, 201, corsHeaders, requestId)
+      }
+
+                                                                                                                                                                   if (path === '/global-settings/all' && method === 'GET') {
+        const authResult = await authenticate(request, env, corsHeaders)
+        if (!authResult.success) return authResult.response!
+
+        if (authResult.session!.role !== 'admin') {
+          return errorResponse('Admin access required', 403, corsHeaders, requestId)
+        }
+
+        const allSettings = await d1GlobalSettings.getAll(env)
+
+        return jsonResponse(allSettings.map(s => ({
+          language: s.language,
+          websiteTitle: s.websiteTitle,
+          websiteDescription: s.websiteDescription,
+          pageTexts: s.pageTexts,
+          footerText: s.footerText,
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt
+        })), 200, corsHeaders, requestId)
+      }
+
+      if (path === '/global-settings' && method === 'DELETE') {
+        const authResult = await authenticate(request, env, corsHeaders)
+        if (!authResult.success) return authResult.response!
+
+        if (authResult.session!.role !== 'admin') {
+          return errorResponse('Admin access required', 403, corsHeaders, requestId)
+        }
+
+        const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
+        if (!csrfResult.success) return csrfResult.response!
+
+        const url = new URL(request.url)
+        const language = url.searchParams.get('language')
+
+        if (!language) {
+          return errorResponse('Language is required', 400, corsHeaders, requestId)
+        }
+
+        await env.SUNPANEL_DB.prepare(`DELETE FROM global_settings WHERE language = ?`)
+          .bind(language).run()
+
+        return jsonResponse({ success: true, message: `Settings for ${language} deleted` }, 200, corsHeaders, requestId)
       }
 
       if (path === '/export' && method === 'GET') {

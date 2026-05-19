@@ -11,7 +11,7 @@
     />
 
     <div v-if="isLoading" class="py-20">
-      <LoadingSpinner :text="t('common.loading') || '加载中...'" />
+      <LoadingSpinner :text="t('common.loading')" />
     </div>
 
     <template v-else>
@@ -19,7 +19,7 @@
         <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-slate-500">{{ t('dashboard.groupCount') || '分组数量' }}</p>
+              <p class="text-sm text-slate-500">{{ t('dashboard.groupCount') }}</p>
               <p class="text-2xl font-bold text-slate-800 dark:text-slate-200">{{ stats.groups }}</p>
             </div>
             <div class="w-12 h-12 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
@@ -31,7 +31,7 @@
         <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-slate-500">{{ t('dashboard.websiteCount') || '网站数量' }}</p>
+              <p class="text-sm text-slate-500">{{ t('dashboard.websiteCount') }}</p>
               <p class="text-2xl font-bold text-slate-800 dark:text-slate-200">{{ stats.items }}</p>
             </div>
             <div class="w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
@@ -43,7 +43,7 @@
         <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-slate-500">{{ t('dashboard.imageCount') || '图片数量' }}</p>
+              <p class="text-sm text-slate-500">{{ t('dashboard.imageCount') }}</p>
               <p class="text-2xl font-bold text-slate-800 dark:text-slate-200">
                 <span v-if="isStatsLoading">
                   <svg class="w-5 h-5 inline animate-spin" fill="none" viewBox="0 0 24 24">
@@ -63,7 +63,7 @@
         <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-slate-500">{{ t('dashboard.userCount') || '用户数量' }}</p>
+              <p class="text-sm text-slate-500">{{ t('dashboard.userCount') }}</p>
               <p class="text-2xl font-bold text-slate-800 dark:text-slate-200">
                 <span v-if="isStatsLoading">
                   <svg class="w-5 h-5 inline animate-spin" fill="none" viewBox="0 0 24 24">
@@ -82,7 +82,7 @@
       </div>
 
       <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{{ t('dashboard.quickActions') || '快捷操作' }}</h3>
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{{ t('dashboard.quickActions') }}</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           <button 
             v-for="action in quickActions" 
@@ -100,7 +100,7 @@
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{{ t('dashboard.recentWebsites') || '最近添加的网站' }}</h3>
+          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{{ t('dashboard.recentWebsites') }}</h3>
           <div class="space-y-3">
             <div 
               v-for="item in recentItems" 
@@ -119,14 +119,14 @@
             <EmptyState
               v-if="recentItems.length === 0"
               icon="📭"
-              :title="t('dashboard.noWebsites') || '暂无网站'"
-              :description="t('dashboard.noWebsitesDesc') || '还没有添加任何网站'"
+              :title="t('dashboard.noWebsites')"
+              :description="t('dashboard.noWebsitesDesc')"
             />
           </div>
         </div>
 
         <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{{ t('dashboard.recentGroups') || '最近添加的分组' }}</h3>
+          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{{ t('dashboard.recentGroups') }}</h3>
           <div class="space-y-3">
             <div 
               v-for="group in recentGroups" 
@@ -139,14 +139,14 @@
               </div>
               <div class="flex-1">
                 <p class="text-sm font-medium text-slate-700 dark:text-slate-300">{{ group.name }}</p>
-                <p class="text-xs text-slate-500">{{ getItemsCount(group.id) }} {{ t('dashboard.websites') || '个网站' }}</p>
+                <p class="text-xs text-slate-500">{{ getItemsCount(group.id) }} {{ t('dashboard.websites') }}</p>
               </div>
             </div>
             <EmptyState
               v-if="recentGroups.length === 0"
               icon="📁"
-              :title="t('dashboard.noGroups') || '暂无分组'"
-              :description="t('dashboard.noGroupsDesc') || '还没有添加任何分组'"
+              :title="t('dashboard.noGroups')"
+              :description="t('dashboard.noGroupsDesc')"
             />
           </div>
         </div>
@@ -175,12 +175,12 @@ const imageCount = ref(0)
 const userCount = ref(1)
 
 const quickActions = computed(() => [
-  { path: '/admin/groups', label: t('dashboard.addGroup') || '添加分组', icon: 'ph:folder-plus-bold', bgClass: 'bg-orange-100 dark:bg-orange-900/30', iconClass: 'text-orange-500' },
-  { path: '/admin/groups', label: t('dashboard.addWebsite') || '添加网站', icon: 'ph:globe-bold', bgClass: 'bg-blue-100 dark:bg-blue-900/30', iconClass: 'text-blue-500' },
-  { path: '/admin/gallery', label: t('dashboard.uploadImage') || '上传图片', icon: 'ph:image-bold', bgClass: 'bg-green-100 dark:bg-green-900/30', iconClass: 'text-green-500' },
-  { path: '/admin/personalization', label: t('dashboard.changeTheme') || '更换主题', icon: 'ph:paint-brush-bold', bgClass: 'bg-purple-100 dark:bg-purple-900/30', iconClass: 'text-purple-500' },
-  { path: '/admin/export-import', label: t('dashboard.exportData') || '导出数据', icon: 'ph:export-bold', bgClass: 'bg-cyan-100 dark:bg-cyan-900/30', iconClass: 'text-cyan-500' },
-  { path: '/admin/api', label: t('dashboard.viewApi') || '查看API', icon: 'ph:code-bold', bgClass: 'bg-pink-100 dark:bg-pink-900/30', iconClass: 'text-pink-500' },
+  { path: '/admin/groups', label: t('dashboard.addGroup'), icon: 'ph:folder-plus-bold', bgClass: 'bg-orange-100 dark:bg-orange-900/30', iconClass: 'text-orange-500' },
+  { path: '/admin/groups', label: t('dashboard.addWebsite'), icon: 'ph:globe-bold', bgClass: 'bg-blue-100 dark:bg-blue-900/30', iconClass: 'text-blue-500' },
+  { path: '/admin/gallery', label: t('dashboard.uploadImage'), icon: 'ph:image-bold', bgClass: 'bg-green-100 dark:bg-green-900/30', iconClass: 'text-green-500' },
+  { path: '/admin/personalization', label: t('dashboard.changeTheme'), icon: 'ph:paint-brush-bold', bgClass: 'bg-purple-100 dark:bg-purple-900/30', iconClass: 'text-purple-500' },
+  { path: '/admin/export-import', label: t('dashboard.exportData'), icon: 'ph:export-bold', bgClass: 'bg-cyan-100 dark:bg-cyan-900/30', iconClass: 'text-cyan-500' },
+  { path: '/admin/api', label: t('dashboard.viewApi'), icon: 'ph:code-bold', bgClass: 'bg-pink-100 dark:bg-pink-900/30', iconClass: 'text-pink-500' },
 ])
 
 const isLoading = computed(() => dataStore.isLoading)

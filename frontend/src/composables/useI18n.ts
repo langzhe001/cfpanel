@@ -1,5 +1,6 @@
-import { computed, toRef } from 'vue'
+import { computed, toRef, watch } from 'vue'
 import { useGlobalSettingsStore } from '@/stores/globalSettings'
+import { eventBus, EVENTS } from '@/composables/useEventBus'
 
 const defaultTexts: Record<string, Record<string, string>> = {
   'zh-CN': {
@@ -161,6 +162,7 @@ const defaultTexts: Record<string, Record<string, string>> = {
     'common.generating': '生成中...',
     'common.noImages': '暂无图片',
     'common.uploadImagesFirst': '请先上传图片到图库',
+    'common.reset': '重置',
     'nav.darkMode': '切换到深色模式',
     'nav.lightMode': '切换到浅色模式',
     'nav.logout': '退出',
@@ -170,8 +172,10 @@ const defaultTexts: Record<string, Record<string, string>> = {
     'home.welcome': '欢迎使用 SunPanel',
     'home.searchPlaceholder': '输入关键词搜索...',
     'home.addFirstGroup': '开始添加您的第一个分组和网站',
+    'home.addFirstGroupDesc': '开始添加您的第一个分组和网站吧',
     'home.goAdmin': '前往管理后台',
     'home.loginToConfigure': '登录后开始配置',
+    'home.title': '首页',
     'login.username': '用户名',
     'login.password': '密码',
     'login.nickname': '昵称',
@@ -182,6 +186,22 @@ const defaultTexts: Record<string, Record<string, string>> = {
     'login.haveAccount': '已有账号，去登录',
     'login.noAccount': '没有账号，去注册',
     'login.backToHome': '返回首页',
+    'login.title': '登录',
+    'login.registerSuccess': '注册成功，请登录',
+    'login.loginFailed': '登录失败，请重试',
+    'login.enterNickname': '请输入昵称',
+    'login.passwordMismatch': '两次输入的密码不一致',
+    'login.enterUsername': '请输入用户名',
+    'login.enterPassword': '请输入密码',
+    'login.passwordTooShort': '密码长度至少为8位',
+    'login.passwordRequirements': '密码需包含大小写字母、数字和特殊字符(@$!%*?&)',
+    'login.usernameRequirements': '用户名只能包含字母、数字和下划线，长度3-50位',
+    'login.tooManyRequests': '请求过于频繁，请稍后再试',
+    'login.invalidCredentials': '用户名或密码错误',
+    'login.serverError': '服务器内部错误，请稍后重试',
+    'login.operationFailed': '操作失败，请重试',
+    'login.rateLimitWait': '剩余等待时间',
+    'login.seconds': '秒',
     'profile.title': '个人信息',
     'profile.username': '用户名',
     'profile.nickname': '昵称',
@@ -241,13 +261,16 @@ const defaultTexts: Record<string, Record<string, string>> = {
     'dashboard.recentWebsites': '最近添加的网站',
     'dashboard.recentGroups': '最近添加的分组',
     'dashboard.noWebsites': '暂无网站',
+    'dashboard.noWebsitesDesc': '还没有添加任何网站',
     'dashboard.noGroups': '暂无分组',
+    'dashboard.noGroupsDesc': '还没有添加任何分组',
     'dashboard.addGroup': '添加分组',
     'dashboard.addWebsite': '添加网站',
     'dashboard.uploadImage': '上传图片',
     'dashboard.changeTheme': '切换主题',
     'dashboard.exportData': '导出数据',
     'dashboard.viewApi': '查看API',
+    'dashboard.websites': '个网站',
     'globalSettings.title': '全局设置',
     'globalSettings.websiteTitle': '网站标题',
     'globalSettings.websiteDescription': '网站描述',
@@ -255,7 +278,22 @@ const defaultTexts: Record<string, Record<string, string>> = {
     'globalSettings.footerText': '页脚文字',
     'globalSettings.save': '保存',
     'globalSettings.resetCache': '重置缓存',
-    'globalSettings.cacheResetSuccess': '缓存已重置'
+    'globalSettings.cacheResetSuccess': '缓存已重置',
+    'globalSettings.saveSuccess': '设置保存成功！',
+    'globalSettings.saveError': '保存失败',
+    'globalSettings.loadError': '加载失败',
+    'globalSettings.resetConfirm': '确定要重置为默认设置吗？',
+    'globalSettings.languageManagement': '语言管理',
+    'globalSettings.selectLanguage': '选择语言',
+    'globalSettings.addLanguage': '添加语言',
+    'globalSettings.noLanguages': '暂无语言设置',
+    'globalSettings.cacheManagement': '缓存管理',
+    'globalSettings.clearCache': '清除所有缓存',
+    'globalSettings.clearCacheDesc': '清除浏览器缓存，强制重新加载所有设置',
+    'globalSettings.websiteTitlePlaceholder': '输入网站标题',
+    'globalSettings.websiteDescriptionPlaceholder': '输入网站描述',
+    'globalSettings.footerTextPlaceholder': '输入页脚文字',
+    'globalSettings.pageTexts': '页面文本'
   },
   'en-US': {
     'admin.migrateFromSunPanel': 'Migrate from sun-panel',
@@ -416,6 +454,7 @@ const defaultTexts: Record<string, Record<string, string>> = {
     'common.generating': 'Generating...',
     'common.noImages': 'No images',
     'common.uploadImagesFirst': 'Please upload images to gallery first',
+    'common.reset': 'Reset',
     'nav.darkMode': 'Switch to dark mode',
     'nav.lightMode': 'Switch to light mode',
     'nav.logout': 'Logout',
@@ -425,8 +464,10 @@ const defaultTexts: Record<string, Record<string, string>> = {
     'home.welcome': 'Welcome to SunPanel',
     'home.searchPlaceholder': 'Search...',
     'home.addFirstGroup': 'Start adding your first group and websites',
+    'home.addFirstGroupDesc': 'Start adding your first group and websites',
     'home.goAdmin': 'Go to Admin',
     'home.loginToConfigure': 'Login to configure',
+    'home.title': 'Home',
     'login.username': 'Username',
     'login.password': 'Password',
     'login.nickname': 'Nickname',
@@ -437,6 +478,22 @@ const defaultTexts: Record<string, Record<string, string>> = {
     'login.haveAccount': 'Already have an account, login',
     'login.noAccount': 'No account, register',
     'login.backToHome': 'Back to Home',
+    'login.title': 'Login',
+    'login.registerSuccess': 'Registration successful, please login',
+    'login.loginFailed': 'Login failed, please try again',
+    'login.enterNickname': 'Please enter nickname',
+    'login.passwordMismatch': 'Passwords do not match',
+    'login.enterUsername': 'Please enter username',
+    'login.enterPassword': 'Please enter password',
+    'login.passwordTooShort': 'Password must be at least 8 characters',
+    'login.passwordRequirements': 'Password must contain uppercase, lowercase, numbers and special characters (@$!%*?&)',
+    'login.usernameRequirements': 'Username can only contain letters, numbers and underscores, 3-50 characters',
+    'login.tooManyRequests': 'Too many requests, please try again later',
+    'login.invalidCredentials': 'Invalid username or password',
+    'login.serverError': 'Server error, please try again later',
+    'login.operationFailed': 'Operation failed, please try again',
+    'login.rateLimitWait': 'Remaining wait time',
+    'login.seconds': 'seconds',
     'profile.title': 'Profile',
     'profile.username': 'Username',
     'profile.nickname': 'Nickname',
@@ -496,13 +553,16 @@ const defaultTexts: Record<string, Record<string, string>> = {
     'dashboard.recentWebsites': 'Recently Added Websites',
     'dashboard.recentGroups': 'Recently Added Groups',
     'dashboard.noWebsites': 'No websites',
+    'dashboard.noWebsitesDesc': 'No websites added yet',
     'dashboard.noGroups': 'No groups',
+    'dashboard.noGroupsDesc': 'No groups added yet',
     'dashboard.addGroup': 'Add Group',
     'dashboard.addWebsite': 'Add Website',
     'dashboard.uploadImage': 'Upload Image',
     'dashboard.changeTheme': 'Change Theme',
     'dashboard.exportData': 'Export Data',
     'dashboard.viewApi': 'View API',
+    'dashboard.websites': 'websites',
     'globalSettings.title': 'Global Settings',
     'globalSettings.websiteTitle': 'Website Title',
     'globalSettings.websiteDescription': 'Website Description',
@@ -510,7 +570,22 @@ const defaultTexts: Record<string, Record<string, string>> = {
     'globalSettings.footerText': 'Footer Text',
     'globalSettings.save': 'Save',
     'globalSettings.resetCache': 'Reset Cache',
-    'globalSettings.cacheResetSuccess': 'Cache reset successfully'
+    'globalSettings.cacheResetSuccess': 'Cache reset successfully',
+    'globalSettings.saveSuccess': 'Settings saved successfully!',
+    'globalSettings.saveError': 'Save failed',
+    'globalSettings.loadError': 'Load failed',
+    'globalSettings.resetConfirm': 'Are you sure you want to reset to default settings?',
+    'globalSettings.languageManagement': 'Language Management',
+    'globalSettings.selectLanguage': 'Select Language',
+    'globalSettings.addLanguage': 'Add Language',
+    'globalSettings.noLanguages': 'No languages configured',
+    'globalSettings.cacheManagement': 'Cache Management',
+    'globalSettings.clearCache': 'Clear All Cache',
+    'globalSettings.clearCacheDesc': 'Clear browser cache and force reload all settings',
+    'globalSettings.websiteTitlePlaceholder': 'Enter website title',
+    'globalSettings.websiteDescriptionPlaceholder': 'Enter website description',
+    'globalSettings.footerTextPlaceholder': 'Enter footer text',
+    'globalSettings.pageTexts': 'Page Texts'
   }
 }
 
@@ -519,14 +594,18 @@ export interface PageTexts {
     welcome?: string
     searchPlaceholder?: string
     addFirstGroup?: string
+    addFirstGroupDesc?: string
     goAdmin?: string
     loginToConfigure?: string
+    title?: string
   }
   nav: {
     admin?: string
     logout?: string
     backToHome?: string
     home?: string
+    darkMode?: string
+    lightMode?: string
   }
   admin: {
     dashboard?: string
@@ -559,6 +638,22 @@ export interface PageTexts {
     haveAccount?: string
     noAccount?: string
     backToHome?: string
+    title?: string
+    registerSuccess?: string
+    loginFailed?: string
+    enterNickname?: string
+    passwordMismatch?: string
+    enterUsername?: string
+    enterPassword?: string
+    passwordTooShort?: string
+    passwordRequirements?: string
+    usernameRequirements?: string
+    tooManyRequests?: string
+    invalidCredentials?: string
+    serverError?: string
+    operationFailed?: string
+    rateLimitWait?: string
+    seconds?: string
   }
   profile: {
     title?: string
@@ -611,13 +706,16 @@ export interface PageTexts {
     recentWebsites?: string
     recentGroups?: string
     noWebsites?: string
+    noWebsitesDesc?: string
     noGroups?: string
+    noGroupsDesc?: string
     addGroup?: string
     addWebsite?: string
     uploadImage?: string
     changeTheme?: string
     exportData?: string
     viewApi?: string
+    websites?: string
   }
   globalSettings: {
     title?: string
@@ -628,6 +726,21 @@ export interface PageTexts {
     save?: string
     resetCache?: string
     cacheResetSuccess?: string
+    saveSuccess?: string
+    saveError?: string
+    loadError?: string
+    resetConfirm?: string
+    languageManagement?: string
+    selectLanguage?: string
+    addLanguage?: string
+    noLanguages?: string
+    cacheManagement?: string
+    clearCache?: string
+    clearCacheDesc?: string
+    websiteTitlePlaceholder?: string
+    websiteDescriptionPlaceholder?: string
+    footerTextPlaceholder?: string
+    pageTexts?: string
   }
   common: {
     cancel?: string
@@ -646,6 +759,12 @@ export interface PageTexts {
     close?: string
     refresh?: string
     retry?: string
+    saving?: string
+    processing?: string
+    generating?: string
+    noImages?: string
+    uploadImagesFirst?: string
+    reset?: string
   }
 }
 
@@ -686,242 +805,304 @@ export const usePageTexts = () => {
 
   const language = computed(() => globalSettingsStore.currentLanguage || 'zh-CN')
 
-  const pageTexts = computed<PageTexts>(() => {
+  // 获取自定义页面文本
+  const customPageTexts = computed(() => globalSettingsStore.settings.pageTexts || {})
+
+  // 辅助函数：获取合并后的文本
+  const getText = (key: string): string | undefined => {
     const lang = language.value
-    const texts = defaultTexts[lang] || {}
+    const defaults = defaultTexts[lang] || {}
+    const custom = customPageTexts.value
+
+    // 从自定义文本中查找 (支持嵌套路径如 'home.welcome')
+    const customKeys = key.split('.')
+    let customValue: any = custom
+    for (const k of customKeys) {
+      if (customValue && typeof customValue === 'object' && k in customValue) {
+        customValue = customValue[k]
+      } else {
+        customValue = undefined
+        break
+      }
+    }
+
+    if (customValue !== undefined && customValue !== '') {
+      return customValue
+    }
+
+    // 回退到默认文本
+    return defaults[key]
+  }
+
+  const pageTexts = computed<PageTexts>(() => {
     return {
       home: {
-        welcome: texts['home.welcome'],
-        searchPlaceholder: texts['home.searchPlaceholder'],
-        addFirstGroup: texts['home.addFirstGroup'],
-        goAdmin: texts['home.goAdmin'],
-        loginToConfigure: texts['home.loginToConfigure']
+        welcome: getText('home.welcome'),
+        searchPlaceholder: getText('home.searchPlaceholder'),
+        addFirstGroup: getText('home.addFirstGroup'),
+        addFirstGroupDesc: getText('home.addFirstGroupDesc'),
+        goAdmin: getText('home.goAdmin'),
+        loginToConfigure: getText('home.loginToConfigure'),
+        title: getText('home.title')
       },
       nav: {
-        admin: texts['nav.admin'],
-        logout: texts['nav.logout'],
-        backToHome: texts['nav.backToHome'],
-        home: texts['nav.home'],
-        darkMode: texts['nav.darkMode'],
-        lightMode: texts['nav.lightMode']
+        admin: getText('nav.admin'),
+        logout: getText('nav.logout'),
+        backToHome: getText('nav.backToHome'),
+        home: getText('nav.home'),
+        darkMode: getText('nav.darkMode'),
+        lightMode: getText('nav.lightMode')
       },
       admin: {
-        dashboard: texts['admin.dashboard'],
-        profile: texts['admin.profile'],
-        personalization: texts['admin.personalization'],
-        groups: texts['admin.groups'],
-        gallery: texts['admin.gallery'],
-        settings: texts['admin.settings'],
-        users: texts['admin.users'],
-        api: texts['admin.api'],
-        openAPI: texts['admin.openAPI'],
-        about: texts['admin.about'],
-        migration: texts['admin.migration'],
-        dataMigration: texts['admin.dataMigration'],
-        publicGallery: texts['admin.publicGallery'],
-        exportImport: texts['admin.exportImport'],
-        user: texts['admin.user'],
-        management: texts['admin.management'],
-        confirmClose: texts['admin.confirmClose'],
-        closeConfirm: texts['admin.closeConfirm'],
-        migrateFromSunPanel: texts['admin.migrateFromSunPanel'],
-        migrateFromSunPanelDesc: texts['admin.migrateFromSunPanelDesc'],
-        selectFileMigrate: texts['admin.selectFileMigrate'],
-        exportToSunPanel: texts['admin.exportToSunPanel'],
-        exportToSunPanelDesc: texts['admin.exportToSunPanelDesc'],
-        exportCompatible: texts['admin.exportCompatible'],
-        migrationInstructions: texts['admin.migrationInstructions'],
-        migrationStep1: texts['admin.migrationStep1'],
-        migrationStep2: texts['admin.migrationStep2'],
-        migrationStep3: texts['admin.migrationStep3'],
-        migrationStep4: texts['admin.migrationStep4'],
-        exportData: texts['admin.exportData'],
-        exportDescription: texts['admin.exportDescription'],
-        exportConfig: texts['admin.exportConfig'],
-        exporting: texts['admin.exporting'],
-        importData: texts['admin.importData'],
-        importDescription: texts['admin.importDescription'],
-        selectFile: texts['admin.selectFile'],
-        importInstructions: texts['admin.importInstructions'],
-        supportJson: texts['admin.supportJson'],
-        importOverwrite: texts['admin.importOverwrite'],
-        backupBeforeImport: texts['admin.backupBeforeImport'],
-        imagesSeparate: texts['admin.imagesSeparate'],
-        confirmImport: texts['admin.confirmImport'],
-        importConfirmMessage: texts['admin.importConfirmMessage'],
-        apiExamples: texts['admin.apiExamples'],
-        getGroups: texts['admin.getGroups'],
-        getItems: texts['admin.getItems'],
-        createGroup: texts['admin.createGroup'],
-        apiEndpoints: texts['admin.apiEndpoints'],
-        createNewGroup: texts['admin.createNewGroup'],
-        updateGroup: texts['admin.updateGroup'],
-        deleteGroup: texts['admin.deleteGroup'],
-        createNewItem: texts['admin.createNewItem'],
-        updateItem: texts['admin.updateItem'],
-        deleteItem: texts['admin.deleteItem'],
-        noAPIToken: texts['admin.noAPIToken'],
-        securityWarning: texts['admin.securityWarning'],
-        keepTokenSecure: texts['admin.keepTokenSecure'],
-        tokenFullAccess: texts['admin.tokenFullAccess'],
-        regularTokenRegen: texts['admin.regularTokenRegen'],
-        revokeIfLeaked: texts['admin.revokeIfLeaked'],
-        tokenExpire90Days: texts['admin.tokenExpire90Days'],
-        generateToken: texts['admin.generateToken'],
-        regenerate: texts['admin.regenerate'],
-        revoke: texts['admin.revoke'],
-        addAccount: texts['admin.addAccount'],
-        editAccount: texts['admin.editAccount'],
-        loadingUsers: texts['admin.loadingUsers'],
-        noAccounts: texts['admin.noAccounts'],
-        clickAddAccount: texts['admin.clickAddAccount'],
-        username: texts['admin.username'],
-        nickname: texts['admin.nickname'],
-        email: texts['admin.email'],
-        password: texts['admin.password'],
-        role: texts['admin.role'],
-        admin: texts['admin.admin'],
-        aboutProject: texts['admin.aboutProject'],
-        projectDescription: texts['admin.projectDescription'],
-        inspiredBy: texts['admin.inspiredBy'],
-        andAdapted: texts['admin.andAdapted'],
-        techStack: texts['admin.techStack'],
-        license: texts['admin.license'],
-        mitLicense: texts['admin.mitLicense'],
-        freeUse: texts['admin.freeUse'],
-        cloudflareNavigation: texts['admin.cloudflareNavigation'],
-        confirmRegenerate: texts['admin.confirmRegenerate'],
-        regenerateConfirmMessage: texts['admin.regenerateConfirmMessage'],
-        confirmRevoke: texts['admin.confirmRevoke'],
-        revokeConfirmMessage: texts['admin.revokeConfirmMessage'],
-        confirmDeleteAccount: texts['admin.confirmDeleteAccount'],
-        fetchUsersFailed: texts['admin.fetchUsersFailed'],
-        createSuccess: texts['admin.createSuccess'],
-        updateSuccess: texts['admin.updateSuccess'],
-        saveFailed: texts['admin.saveFailed'],
-        deleteSuccess: texts['admin.deleteSuccess'],
-        deleteFailed: texts['admin.deleteFailed'],
-        exportSuccess: texts['admin.exportSuccess'],
-        exportFailed: texts['admin.exportFailed'],
-        exportError: texts['admin.exportError'],
-        importSuccess: texts['admin.importSuccess'],
-        importFailed: texts['admin.importFailed'],
-        migrationSuccess: texts['admin.migrationSuccess'],
-        migrationFileError: texts['admin.migrationFileError'],
-        tokenExpired: texts['admin.tokenExpired'],
-        tokenGeneratedSuccess: texts['admin.tokenGeneratedSuccess'],
-        tokenGenerateFailed: texts['admin.tokenGenerateFailed'],
-        tokenRevoked: texts['admin.tokenRevoked'],
-        tokenCopied: texts['admin.tokenCopied'],
-        copyFailed: texts['admin.copyFailed']
+        dashboard: getText('admin.dashboard'),
+        profile: getText('admin.profile'),
+        personalization: getText('admin.personalization'),
+        groups: getText('admin.groups'),
+        gallery: getText('admin.gallery'),
+        settings: getText('admin.settings'),
+        users: getText('admin.users'),
+        api: getText('admin.api'),
+        openAPI: getText('admin.openAPI'),
+        about: getText('admin.about'),
+        migration: getText('admin.migration'),
+        dataMigration: getText('admin.dataMigration'),
+        publicGallery: getText('admin.publicGallery'),
+        exportImport: getText('admin.exportImport'),
+        user: getText('admin.user'),
+        management: getText('admin.management'),
+        confirmClose: getText('admin.confirmClose'),
+        closeConfirm: getText('admin.closeConfirm'),
+        migrateFromSunPanel: getText('admin.migrateFromSunPanel'),
+        migrateFromSunPanelDesc: getText('admin.migrateFromSunPanelDesc'),
+        selectFileMigrate: getText('admin.selectFileMigrate'),
+        exportToSunPanel: getText('admin.exportToSunPanel'),
+        exportToSunPanelDesc: getText('admin.exportToSunPanelDesc'),
+        exportCompatible: getText('admin.exportCompatible'),
+        migrationInstructions: getText('admin.migrationInstructions'),
+        migrationStep1: getText('admin.migrationStep1'),
+        migrationStep2: getText('admin.migrationStep2'),
+        migrationStep3: getText('admin.migrationStep3'),
+        migrationStep4: getText('admin.migrationStep4'),
+        exportData: getText('admin.exportData'),
+        exportDescription: getText('admin.exportDescription'),
+        exportConfig: getText('admin.exportConfig'),
+        exporting: getText('admin.exporting'),
+        importData: getText('admin.importData'),
+        importDescription: getText('admin.importDescription'),
+        selectFile: getText('admin.selectFile'),
+        importInstructions: getText('admin.importInstructions'),
+        supportJson: getText('admin.supportJson'),
+        importOverwrite: getText('admin.importOverwrite'),
+        backupBeforeImport: getText('admin.backupBeforeImport'),
+        imagesSeparate: getText('admin.imagesSeparate'),
+        confirmImport: getText('admin.confirmImport'),
+        importConfirmMessage: getText('admin.importConfirmMessage'),
+        apiExamples: getText('admin.apiExamples'),
+        getGroups: getText('admin.getGroups'),
+        getItems: getText('admin.getItems'),
+        createGroup: getText('admin.createGroup'),
+        apiEndpoints: getText('admin.apiEndpoints'),
+        createNewGroup: getText('admin.createNewGroup'),
+        updateGroup: getText('admin.updateGroup'),
+        deleteGroup: getText('admin.deleteGroup'),
+        createNewItem: getText('admin.createNewItem'),
+        updateItem: getText('admin.updateItem'),
+        deleteItem: getText('admin.deleteItem'),
+        noAPIToken: getText('admin.noAPIToken'),
+        securityWarning: getText('admin.securityWarning'),
+        keepTokenSecure: getText('admin.keepTokenSecure'),
+        tokenFullAccess: getText('admin.tokenFullAccess'),
+        regularTokenRegen: getText('admin.regularTokenRegen'),
+        revokeIfLeaked: getText('admin.revokeIfLeaked'),
+        tokenExpire90Days: getText('admin.tokenExpire90Days'),
+        generateToken: getText('admin.generateToken'),
+        regenerate: getText('admin.regenerate'),
+        revoke: getText('admin.revoke'),
+        addAccount: getText('admin.addAccount'),
+        editAccount: getText('admin.editAccount'),
+        loadingUsers: getText('admin.loadingUsers'),
+        noAccounts: getText('admin.noAccounts'),
+        clickAddAccount: getText('admin.clickAddAccount'),
+        username: getText('admin.username'),
+        nickname: getText('admin.nickname'),
+        email: getText('admin.email'),
+        password: getText('admin.password'),
+        role: getText('admin.role'),
+        admin: getText('admin.admin'),
+        aboutProject: getText('admin.aboutProject'),
+        projectDescription: getText('admin.projectDescription'),
+        inspiredBy: getText('admin.inspiredBy'),
+        andAdapted: getText('admin.andAdapted'),
+        techStack: getText('admin.techStack'),
+        license: getText('admin.license'),
+        mitLicense: getText('admin.mitLicense'),
+        freeUse: getText('admin.freeUse'),
+        cloudflareNavigation: getText('admin.cloudflareNavigation'),
+        confirmRegenerate: getText('admin.confirmRegenerate'),
+        regenerateConfirmMessage: getText('admin.regenerateConfirmMessage'),
+        confirmRevoke: getText('admin.confirmRevoke'),
+        revokeConfirmMessage: getText('admin.revokeConfirmMessage'),
+        confirmDeleteAccount: getText('admin.confirmDeleteAccount'),
+        fetchUsersFailed: getText('admin.fetchUsersFailed'),
+        createSuccess: getText('admin.createSuccess'),
+        updateSuccess: getText('admin.updateSuccess'),
+        saveFailed: getText('admin.saveFailed'),
+        deleteSuccess: getText('admin.deleteSuccess'),
+        deleteFailed: getText('admin.deleteFailed'),
+        exportSuccess: getText('admin.exportSuccess'),
+        exportFailed: getText('admin.exportFailed'),
+        exportError: getText('admin.exportError'),
+        importSuccess: getText('admin.importSuccess'),
+        importFailed: getText('admin.importFailed'),
+        migrationSuccess: getText('admin.migrationSuccess'),
+        migrationFileError: getText('admin.migrationFileError'),
+        tokenExpired: getText('admin.tokenExpired'),
+        tokenGeneratedSuccess: getText('admin.tokenGeneratedSuccess'),
+        tokenGenerateFailed: getText('admin.tokenGenerateFailed'),
+        tokenRevoked: getText('admin.tokenRevoked'),
+        tokenCopied: getText('admin.tokenCopied'),
+        copyFailed: getText('admin.copyFailed')
       },
       login: {
-        username: texts['login.username'],
-        password: texts['login.password'],
-        nickname: texts['login.nickname'],
-        confirmPassword: texts['login.confirmPassword'],
-        submit: texts['login.submit'],
-        register: texts['login.register'],
-        loading: texts['login.loading'],
-        haveAccount: texts['login.haveAccount'],
-        noAccount: texts['login.noAccount'],
-        backToHome: texts['login.backToHome'],
-        registerSuccess: texts['login.registerSuccess'],
-        loginSuccess: texts['login.loginSuccess']
+        username: getText('login.username'),
+        password: getText('login.password'),
+        nickname: getText('login.nickname'),
+        confirmPassword: getText('login.confirmPassword'),
+        submit: getText('login.submit'),
+        register: getText('login.register'),
+        loading: getText('login.loading'),
+        haveAccount: getText('login.haveAccount'),
+        noAccount: getText('login.noAccount'),
+        backToHome: getText('login.backToHome'),
+        title: getText('login.title'),
+        registerSuccess: getText('login.registerSuccess'),
+        loginFailed: getText('login.loginFailed'),
+        enterNickname: getText('login.enterNickname'),
+        passwordMismatch: getText('login.passwordMismatch'),
+        enterUsername: getText('login.enterUsername'),
+        enterPassword: getText('login.enterPassword'),
+        passwordTooShort: getText('login.passwordTooShort'),
+        passwordRequirements: getText('login.passwordRequirements'),
+        usernameRequirements: getText('login.usernameRequirements'),
+        tooManyRequests: getText('login.tooManyRequests'),
+        invalidCredentials: getText('login.invalidCredentials'),
+        serverError: getText('login.serverError'),
+        operationFailed: getText('login.operationFailed'),
+        rateLimitWait: getText('login.rateLimitWait'),
+        seconds: getText('login.seconds')
       },
       profile: {
-        title: texts['profile.title'],
-        username: texts['profile.username'],
-        nickname: texts['profile.nickname'],
-        email: texts['profile.email'],
-        language: texts['profile.language'],
-        save: texts['profile.save'],
-        cancel: texts['profile.cancel'],
-        password: texts['profile.password'],
-        currentPassword: texts['profile.currentPassword'],
-        newPassword: texts['profile.newPassword'],
-        confirmNewPassword: texts['profile.confirmNewPassword'],
-        changePassword: texts['profile.changePassword'],
-        uploading: texts['profile.uploading'],
-        uploadSuccess: texts['profile.uploadSuccess'],
-        uploadError: texts['profile.uploadError'],
-        saveSuccess: texts['profile.saveSuccess']
+        title: getText('profile.title'),
+        username: getText('profile.username'),
+        nickname: getText('profile.nickname'),
+        email: getText('profile.email'),
+        language: getText('profile.language'),
+        save: getText('profile.save'),
+        cancel: getText('profile.cancel'),
+        password: getText('profile.password'),
+        currentPassword: getText('profile.currentPassword'),
+        newPassword: getText('profile.newPassword'),
+        confirmNewPassword: getText('profile.confirmNewPassword'),
+        changePassword: getText('profile.changePassword'),
+        uploading: getText('profile.uploading'),
+        uploadSuccess: getText('profile.uploadSuccess'),
+        uploadError: getText('profile.uploadError'),
+        saveSuccess: getText('profile.saveSuccess')
       },
       groups: {
-        title: texts['groups.title'],
-        addGroup: texts['groups.addGroup'],
-        editGroup: texts['groups.editGroup'],
-        deleteConfirm: texts['groups.deleteConfirm'],
-        name: texts['groups.name'],
-        icon: texts['groups.icon'],
-        websites: texts['groups.websites'],
-        noGroups: texts['groups.noGroups'],
-        addFirstGroup: texts['groups.addFirstGroup'],
-        websiteTitle: texts['groups.websiteTitle'],
-        addWebsite: texts['groups.addWebsite'],
-        editWebsite: texts['groups.editWebsite'],
-        deleteWebsiteConfirm: texts['groups.deleteWebsiteConfirm'],
-        url: texts['groups.url'],
-        description: texts['groups.description'],
-        color: texts['groups.color'],
-        group: texts['groups.group'],
-        openInNewTab: texts['groups.openInNewTab'],
-        showAsWindow: texts['groups.showAsWindow'],
-        selectGroup: texts['groups.selectGroup'],
-        noWebsites: texts['groups.noWebsites'],
-        addFirstWebsite: texts['groups.addFirstWebsite'],
-        namePlaceholder: texts['groups.namePlaceholder']
+        title: getText('groups.title'),
+        addGroup: getText('groups.addGroup'),
+        editGroup: getText('groups.editGroup'),
+        deleteConfirm: getText('groups.deleteConfirm'),
+        name: getText('groups.name'),
+        icon: getText('groups.icon'),
+        websites: getText('groups.websites'),
+        noGroups: getText('groups.noGroups'),
+        addFirstGroup: getText('groups.addFirstGroup'),
+        websiteTitle: getText('groups.websiteTitle'),
+        addWebsite: getText('groups.addWebsite'),
+        editWebsite: getText('groups.editWebsite'),
+        deleteWebsiteConfirm: getText('groups.deleteWebsiteConfirm'),
+        url: getText('groups.url'),
+        description: getText('groups.description'),
+        color: getText('groups.color'),
+        group: getText('groups.group'),
+        openInNewTab: getText('groups.openInNewTab'),
+        showAsWindow: getText('groups.showAsWindow'),
+        selectGroup: getText('groups.selectGroup'),
+        noWebsites: getText('groups.noWebsites'),
+        addFirstWebsite: getText('groups.addFirstWebsite'),
+        namePlaceholder: getText('groups.namePlaceholder')
       },
       dashboard: {
-        title: texts['dashboard.title'],
-        groupCount: texts['dashboard.groupCount'],
-        websiteCount: texts['dashboard.websiteCount'],
-        imageCount: texts['dashboard.imageCount'],
-        userCount: texts['dashboard.userCount'],
-        quickActions: texts['dashboard.quickActions'],
-        recentWebsites: texts['dashboard.recentWebsites'],
-        recentGroups: texts['dashboard.recentGroups'],
-        noWebsites: texts['dashboard.noWebsites'],
-        noGroups: texts['dashboard.noGroups'],
-        addGroup: texts['dashboard.addGroup'],
-        addWebsite: texts['dashboard.addWebsite'],
-        uploadImage: texts['dashboard.uploadImage'],
-        changeTheme: texts['dashboard.changeTheme'],
-        exportData: texts['dashboard.exportData'],
-        viewApi: texts['dashboard.viewApi']
+        title: getText('dashboard.title'),
+        groupCount: getText('dashboard.groupCount'),
+        websiteCount: getText('dashboard.websiteCount'),
+        imageCount: getText('dashboard.imageCount'),
+        userCount: getText('dashboard.userCount'),
+        quickActions: getText('dashboard.quickActions'),
+        recentWebsites: getText('dashboard.recentWebsites'),
+        recentGroups: getText('dashboard.recentGroups'),
+        noWebsites: getText('dashboard.noWebsites'),
+        noWebsitesDesc: getText('dashboard.noWebsitesDesc'),
+        noGroups: getText('dashboard.noGroups'),
+        noGroupsDesc: getText('dashboard.noGroupsDesc'),
+        addGroup: getText('dashboard.addGroup'),
+        addWebsite: getText('dashboard.addWebsite'),
+        uploadImage: getText('dashboard.uploadImage'),
+        changeTheme: getText('dashboard.changeTheme'),
+        exportData: getText('dashboard.exportData'),
+        viewApi: getText('dashboard.viewApi'),
+        websites: getText('dashboard.websites')
       },
       globalSettings: {
-        title: texts['globalSettings.title'],
-        websiteTitle: texts['globalSettings.websiteTitle'],
-        websiteDescription: texts['globalSettings.websiteDescription'],
-        language: texts['globalSettings.language'],
-        footerText: texts['globalSettings.footerText'],
-        save: texts['globalSettings.save'],
-        resetCache: texts['globalSettings.resetCache'],
-        cacheResetSuccess: texts['globalSettings.cacheResetSuccess']
+        title: getText('globalSettings.title'),
+        websiteTitle: getText('globalSettings.websiteTitle'),
+        websiteDescription: getText('globalSettings.websiteDescription'),
+        language: getText('globalSettings.language'),
+        footerText: getText('globalSettings.footerText'),
+        save: getText('globalSettings.save'),
+        resetCache: getText('globalSettings.resetCache'),
+        cacheResetSuccess: getText('globalSettings.cacheResetSuccess'),
+        saveSuccess: getText('globalSettings.saveSuccess'),
+        saveError: getText('globalSettings.saveError'),
+        loadError: getText('globalSettings.loadError'),
+        resetConfirm: getText('globalSettings.resetConfirm'),
+        languageManagement: getText('globalSettings.languageManagement'),
+        selectLanguage: getText('globalSettings.selectLanguage'),
+        addLanguage: getText('globalSettings.addLanguage'),
+        noLanguages: getText('globalSettings.noLanguages'),
+        cacheManagement: getText('globalSettings.cacheManagement'),
+        clearCache: getText('globalSettings.clearCache'),
+        clearCacheDesc: getText('globalSettings.clearCacheDesc'),
+        websiteTitlePlaceholder: getText('globalSettings.websiteTitlePlaceholder'),
+        websiteDescriptionPlaceholder: getText('globalSettings.websiteDescriptionPlaceholder'),
+        footerTextPlaceholder: getText('globalSettings.footerTextPlaceholder'),
+        pageTexts: getText('globalSettings.pageTexts')
       },
       common: {
-        cancel: texts['common.cancel'],
-        save: texts['common.save'],
-        delete: texts['common.delete'],
-        edit: texts['common.edit'],
-        add: texts['common.add'],
-        loading: texts['common.loading'],
-        error: texts['common.error'],
-        success: texts['common.success'],
-        confirm: texts['common.confirm'],
-        yes: texts['common.yes'],
-        no: texts['common.no'],
-        search: texts['common.search'],
-        submit: texts['common.submit'],
-        close: texts['common.close'],
-        refresh: texts['common.refresh'],
-        retry: texts['common.retry'],
-        saving: texts['common.saving'],
-        processing: texts['common.processing'],
-        generating: texts['common.generating'],
-        noImages: texts['common.noImages'],
-        uploadImagesFirst: texts['common.uploadImagesFirst']
+        cancel: getText('common.cancel'),
+        save: getText('common.save'),
+        delete: getText('common.delete'),
+        edit: getText('common.edit'),
+        add: getText('common.add'),
+        loading: getText('common.loading'),
+        error: getText('common.error'),
+        success: getText('common.success'),
+        confirm: getText('common.confirm'),
+        yes: getText('common.yes'),
+        no: getText('common.no'),
+        search: getText('common.search'),
+        submit: getText('common.submit'),
+        close: getText('common.close'),
+        refresh: getText('common.refresh'),
+        retry: getText('common.retry'),
+        saving: getText('common.saving'),
+        processing: getText('common.processing'),
+        generating: getText('common.generating'),
+        noImages: getText('common.noImages'),
+        uploadImagesFirst: getText('common.uploadImagesFirst'),
+        reset: getText('common.reset')
       }
     }
   })

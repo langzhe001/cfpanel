@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import type { Settings } from '@/types'
 import { settingsApi } from '@/api'
+import { eventBus, EVENTS } from '@/composables/useEventBus'
 
 const defaultSettings: Settings = {
   theme: 'light',
@@ -65,6 +66,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const updateSettings = async (newSettings: Partial<Settings>) => {
     settings.value = { ...settings.value, ...newSettings }
     await saveSettings()
+    // 触发事件通知其他组件
+    eventBus.emit(EVENTS.SETTINGS_CHANGED, settings.value)
   }
 
   const resetSettings = () => {

@@ -11,7 +11,7 @@
           v-if="isLoggedIn"
           @click="openAdminModal"
           class="p-2 rounded-full hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all hover:scale-110"
-          :title="navTexts.admin || '管理后台'"
+          :title="navTexts.admin"
         >
           <svg class="w-5 h-5 text-slate-700 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
@@ -21,7 +21,7 @@
         <button 
           @click="toggleTheme"
           class="p-2 rounded-full hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all hover:scale-110"
-          :title="isDark ? (t('nav.lightMode') || '切换到浅色模式') : (t('nav.darkMode') || '切换到深色模式')"
+          :title="isDark ? navTexts.lightMode : navTexts.darkMode"
         >
           <svg v-if="isDark" class="w-5 h-5 text-slate-700 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
@@ -34,7 +34,7 @@
           v-if="isLoggedIn"
           @click="handleLogout"
           class="p-2 rounded-full hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all hover:scale-110"
-          :title="navTexts.logout || '退出登录'"
+          :title="navTexts.logout"
         >
           <svg class="w-5 h-5 text-slate-700 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
@@ -64,7 +64,7 @@
               v-model="searchQuery"
               @keyup.enter="doSearch"
               type="text"
-              :placeholder="homeTexts.searchPlaceholder || '请输入搜索内容'"
+              :placeholder="homeTexts.searchPlaceholder"
               class="w-full px-14 py-4 text-lg rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl border border-white/30 dark:border-slate-700/50 focus:outline-none focus:ring-2 focus:ring-orange-400/50 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 shadow-lg"
             />
             <button 
@@ -90,26 +90,26 @@
       />
 
       <div v-if="isLoading" class="py-20">
-        <LoadingSpinner :text="t('common.loading') || '加载中...'" />
+        <LoadingSpinner :text="t('common.loading')" />
       </div>
 
       <div v-else-if="!isLoggedIn || groups.length === 0" class="flex flex-col items-center justify-center py-20">
         <div class="text-6xl mb-4">🌞</div>
-        <h2 class="text-2xl font-bold text-white drop-shadow-lg mb-2">{{ homeTexts.welcome || '欢迎使用 SunPanel' }}</h2>
-        <p class="text-white/80 drop-shadow mb-6">{{ homeTexts.addFirstGroup || '开始添加您的第一个分组和网站吧' }}</p>
+        <h2 class="text-2xl font-bold text-white drop-shadow-lg mb-2">{{ homeTexts.welcome }}</h2>
+        <p class="text-white/80 drop-shadow mb-6">{{ homeTexts.addFirstGroupDesc }}</p>
         <button 
           v-if="isLoggedIn"
           @click="openAdminModal"
           class="px-6 py-3 text-white bg-orange-500 rounded-full hover:bg-orange-600 transition-colors shadow-lg"
         >
-          {{ navTexts.admin || '前往管理后台' }}
+          {{ navTexts.admin }}
         </button>
         <button 
           v-else
           @click="goLogin"
           class="px-6 py-3 text-white bg-orange-500 rounded-full hover:bg-orange-600 transition-colors shadow-lg"
         >
-          {{ homeTexts.loginToConfigure || '登录后开始配置' }}
+          {{ homeTexts.loginToConfigure }}
         </button>
       </div>
 
@@ -165,7 +165,7 @@
       </div>
     </main>
 
-    <Modal v-model="adminModalOpen" :title="globalSettingsStore.websiteTitle + ' ' + (t('nav.admin') || '管理后台')" icon="☀️" @close="closeAdminModal">
+    <Modal v-model="adminModalOpen" :title="globalSettingsStore.websiteTitle + ' ' + navTexts.admin" icon="☀️" @close="closeAdminModal">
       <div class="w-full h-full min-h-[400px] sm:min-h-[500px] lg:min-h-[600px]">
         <iframe 
           :src="adminUrl" 
@@ -197,6 +197,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useDataStore } from '@/stores/data'
 import { useGlobalSettingsStore } from '@/stores/globalSettings'
 import { usePageTexts } from '@/composables/useI18n'
+import { EVENTS, useCrossFrameSync } from '@/composables/useEventBus'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import ErrorMessage from '@/components/ErrorMessage.vue'
 import Modal from '@/components/Modal.vue'
@@ -220,6 +221,7 @@ const currentDate = ref('')
 const adminModalOpen = ref(false)
 const adminUrl = ref('')
 let timeInterval: number | null = null
+let globalSettingsUnsubscribe: (() => void) | null = null
 
 const updateTime = () => {
   const now = new Date()
@@ -463,6 +465,13 @@ onMounted(async () => {
   timeInterval = window.setInterval(updateTime, 1000)
 
   window.addEventListener('resize', handleResize)
+
+  // 监听后台设置变更（跨 iframe 通信）
+  const { listenForChanges } = useCrossFrameSync()
+  globalSettingsUnsubscribe = listenForChanges(EVENTS.GLOBAL_SETTINGS_CHANGED, (newSettings) => {
+    console.log('[Home] 收到后台设置变更通知，更新全局设置')
+    globalSettingsStore.settings = { ...newSettings }
+  })
 })
 
 onUnmounted(() => {
@@ -470,6 +479,11 @@ onUnmounted(() => {
     clearInterval(timeInterval)
   }
   window.removeEventListener('resize', handleResize)
+  
+  // 取消监听
+  if (globalSettingsUnsubscribe) {
+    globalSettingsUnsubscribe()
+  }
 })
 </script>
 

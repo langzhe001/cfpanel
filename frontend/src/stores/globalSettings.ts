@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { GlobalSettings } from '@/types'
 import { globalSettingsApi } from '@/api'
+import { eventBus, EVENTS, useCrossFrameSync } from '@/composables/useEventBus'
 
 const isBrowser = typeof window !== 'undefined'
 const GLOBAL_SETTINGS_KEY = 'sunpanel_global_settings'
@@ -148,22 +149,29 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   const updateSettings = async (data: Partial<GlobalSettings>) => {
     try {
       console.log('[globalSettingsStore] 更新设置:', data)
-      
+
       // 先清除当前缓存，确保获取最新数据
       clearLanguageCache(currentLanguage.value)
-      
+
       // 调用API更新
       const res = await globalSettingsApi.update({
         ...data,
         language: currentLanguage.value
       })
-      
+
       // 更新本地状态
       settings.value = res.data
-      
+
       // 立即保存到缓存
       saveToCache()
-      
+
+      // 触发事件通知其他组件刷新翻译（同页面）
+      eventBus.emit(EVENTS.GLOBAL_SETTINGS_CHANGED, res.data)
+
+      // 跨 iframe 广播变更（通知父页面/其他 iframe）
+      const { broadcastChange } = useCrossFrameSync()
+      broadcastChange(EVENTS.GLOBAL_SETTINGS_CHANGED, res.data)
+
       console.log('[globalSettingsStore] 设置更新成功')
       return res.data
     } catch (err: any) {
