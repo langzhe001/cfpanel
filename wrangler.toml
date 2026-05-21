@@ -3,10 +3,19 @@ main = "worker/index.ts"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+[[durable_objects.bindings]]
+name = "SSE_MANAGER"
+class_name = "SSEManager"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SSEManager"]
+
+# D1 数据库表结构已通过 schema.sql 初始化，无需额外 migrations
 [[d1_databases]]
 binding = "SUNPANEL_DB"
 database_name = "sunpanel-db"
-database_id = "b0f2e49a-01db-41d6-8048-e168735b31e4"
+database_id = "f218020b-34fb-45bf-8999-1c9482f338e1"
 
 [[kv_namespaces]]
 binding = "IMAGES_KV"

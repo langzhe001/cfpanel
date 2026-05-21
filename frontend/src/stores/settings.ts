@@ -31,6 +31,7 @@ export const useSettingsStore = defineStore('settings', () => {
       return cookies.some(c => c.startsWith('session_token='))
     }
 
+    // 未认证且非强制刷新时使用缓存
     if (!isAuthenticated() && !forceApi) {
       const saved = localStorage.getItem('settings')
       if (saved) {
@@ -41,7 +42,7 @@ export const useSettingsStore = defineStore('settings', () => {
     }
 
     try {
-      const res = await settingsApi.get()
+      const res = await settingsApi.get(forceApi)
       settings.value = { ...defaultSettings, ...res.data }
       localStorage.setItem('settings', JSON.stringify(settings.value))
     } catch (err: any) {
@@ -67,6 +68,12 @@ export const useSettingsStore = defineStore('settings', () => {
     settings.value = { ...settings.value, ...newSettings }
     await saveSettings()
     // 触发事件通知其他组件
+    eventBus.emit(EVENTS.SETTINGS_CHANGED, settings.value)
+  }
+
+  const updateSettingsLocal = (newSettings: Partial<Settings>) => {
+    settings.value = { ...settings.value, ...newSettings }
+    localStorage.setItem('settings', JSON.stringify(settings.value))
     eventBus.emit(EVENTS.SETTINGS_CHANGED, settings.value)
   }
 
@@ -96,6 +103,7 @@ export const useSettingsStore = defineStore('settings', () => {
     loadSettings,
     saveSettings,
     updateSettings,
+    updateSettingsLocal,
     resetSettings
   }
 })

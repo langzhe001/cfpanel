@@ -342,9 +342,13 @@ export const itemApi = {
 }
 
 export const settingsApi = {
-  get: async () => {
+  get: async (forceRefresh = false) => {
+    // 强制刷新时清除缓存
+    if (forceRefresh) {
+      clearCache('settings')
+    }
     const cached = getCached<APIResponse<Settings>>('settings')
-    if (cached) return cached
+    if (cached && !forceRefresh) return cached
     const res = await api.get<APIResponse<Settings>>('/settings')
     setCached('settings', res)
     return res

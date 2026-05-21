@@ -15,7 +15,7 @@
         <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ t('admin.gallery') || '我的图库' }}</h3>
         <label class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 cursor-pointer flex items-center gap-2 transition-colors">
           <Icon icon="ph:upload-bold" class="w-5 h-5" />
-          {{ t('admin.uploadImage') || '上传图片' }}
+          {{ t('dashboard.uploadImage') }}
           <input type="file" accept="image/*" multiple @change="handleUpload" class="hidden" />
         </label>
       </div>

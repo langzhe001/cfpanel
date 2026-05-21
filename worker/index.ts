@@ -12,11 +12,257 @@ export interface Env {
     fetch: (request: Request) => Promise<Response>
   }
   IMAGES_KV: KVNamespace
+  SSE_MANAGER?: DurableObjectNamespace
+}
+
+interface SSEClient {
+  userId: number
+  send: (event: string, data: any) => void
+  close: () => void
+}
+
+export class SSEManager {
+  state: DurableObjectState
+  clients: Map<string, SSEClient>
+
+  constructor(state: DurableObjectState) {
+    this.state = state
+    this.clients = new Map()
+  }
+
+  async fetch(request: Request) {
+    const url = new URL(request.url)
+    const path = url.pathname
+
+    if (path === '/sse') {
+      return this.handleSSE(request)
+    }
+
+    if (path === '/broadcast') {
+      return this.handleBroadcast(request)
+    }
+
+    if (path === '/broadcast-message') {
+      return this.handleBroadcastMessage(request)
+    }
+
+    return new Response('Not Found', { status: 404 })
+  }
+
+  async handleSSE(request: Request) {
+    const userId = parseInt(request.headers.get('X-User-Id') || '0')
+    console.log(`[SSE] SSE 连接请求 - 用户: ${userId}`)
+
+    const stream = new ReadableStream({
+      start: (controller) => {
+        const encoder = new TextEncoder()
+        const clientId = crypto.randomUUID()
+
+        const sendMessage = (event: string, data: any) => {
+          const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
+          controller.enqueue(encoder.encode(message))
+        }
+
+        const client: SSEClient = {
+          userId,
+          send: sendMessage,
+          close: () => {
+            try {
+              controller.close()
+            } catch {
+              // ignore
+            }
+          }
+        }
+
+        this.clients.set(clientId, client)
+        console.log(`[SSE] 客户端已注册 - ID: ${clientId}, 用户: ${userId}, 总数: ${this.clients.size}`)
+
+        sendMessage('connected', { message: 'SSE 连接已建立' })
+
+        const interval = setInterval(() => {
+          sendMessage('ping', { timestamp: Date.now() })
+        }, 30000)
+
+        if (controller.signal) {
+          controller.signal.addEventListener('abort', () => {
+            this.clients.delete(clientId)
+            clearInterval(interval)
+            console.log(`[SSE] 客户端断开 - ID: ${clientId}, 用户: ${userId}, 总数: ${this.clients.size}`)
+          })
+        }
+      },
+      cancel: () => {
+        console.log('[SSE] SSE 流被取消')
+      }
+    })
+
+    const headers = new Headers({
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': request.headers.get('Origin') || '*',
+      'Access-Control-Allow-Credentials': 'true'
+    })
+
+    return new Response(stream, { headers })
+  }
+
+  async handleBroadcast(request: Request) {
+    console.log('[SSE] 收到广播请求')
+    
+    const body = await request.json()
+    const { userId, event, data } = body
+
+    console.log(`[SSE] 广播请求 - 用户: ${userId}, 事件: ${event}, 数据: ${JSON.stringify(data).substring(0, 100)}`)
+    console.log(`[SSE] 当前客户端数量: ${this.clients.size}`)
+
+    let sentCount = 0
+    this.clients.forEach((client, clientId) => {
+      if (client.userId === userId) {
+        try {
+          client.send(event, data)
+          sentCount++
+          console.log(`[SSE] 消息发送成功 - 客户端ID: ${clientId}`)
+        } catch (error: any) {
+          console.log(`[SSE] 消息发送失败 - 客户端ID: ${clientId}, 错误: ${error.message}`)
+          client.close()
+          this.clients.delete(clientId)
+        }
+      }
+    })
+
+    console.log(`[SSE] 广播完成 - 已发送到 ${sentCount} 个客户端`)
+
+    return new Response(JSON.stringify({ success: true, sentCount }), {
+      headers: { 'Content-Type': 'application/json' }
+    })
+  }
+
+  async handleBroadcastMessage(request: Request) {
+    console.log('[SSE] 收到广播消息请求 (旧格式)')
+    
+    const body = await request.json()
+    const { userId, message } = body
+
+    console.log(`[SSE] 广播消息请求 - 用户: ${userId}`)
+    console.log(`[SSE] 当前客户端数量: ${this.clients.size}`)
+
+    let sentCount = 0
+    this.clients.forEach((client, clientId) => {
+      if (client.userId === userId) {
+        try {
+          const parsedMessage = JSON.parse(message)
+          client.send('message', parsedMessage)
+          sentCount++
+          console.log(`[SSE] 消息发送成功 - 客户端ID: ${clientId}`)
+        } catch (error: any) {
+          console.log(`[SSE] 消息发送失败 - 客户端ID: ${clientId}, 错误: ${error.message}`)
+          client.close()
+          this.clients.delete(clientId)
+        }
+      }
+    })
+
+    console.log(`[SSE] 广播完成 - 已发送到 ${sentCount} 个客户端`)
+
+    return new Response(JSON.stringify({ success: true, sentCount }), {
+      headers: { 'Content-Type': 'application/json' }
+    })
+  }
+}
+
+const broadcastToUser = async (userId: number, event: string, data: any, env: Env) => {
+  if (!env.SSE_MANAGER) {
+    console.log('[SSE] SSE_MANAGER Durable Object 未配置')
+    return
+  }
+
+  try {
+    const id = env.SSE_MANAGER.idFromName('sse-manager')
+    const stub = env.SSE_MANAGER.get(id)
+
+    console.log(`[SSE] 准备广播消息 - 用户: ${userId}, 事件: ${event}`)
+
+    const response = await stub.fetch(new Request('http://localhost/broadcast', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, event, data })
+    }))
+
+    const result = await response.json()
+    console.log(`[SSE] 广播结果: ${JSON.stringify(result)}`)
+  } catch (error: any) {
+    console.log(`[SSE] 广播失败: ${error.message}`)
+  }
+}
+
+const toCamelCase = (str: string): string => {
+  return str.replace(/_([a-z])/g, (match, letter) => letter.toUpperCase())
+}
+
+const broadcastToUserOld = async (userId: number, eventType: string, data: any, env: Env) => {
+  if (!env.IMAGES_KV) {
+    console.log('[SSE] IMAGES_KV 未配置')
+    return
+  }
+
+  try {
+    const messageKey = `sse_messages_${userId}`
+    
+    let eventName: string
+    let eventData: any
+    
+    if (data && typeof data === 'object' && 'type' in data && 'data' in data) {
+      eventName = toCamelCase(data.type)
+      eventData = data.data
+    } else {
+      eventName = toCamelCase(eventType)
+      eventData = data
+    }
+
+    const newMessage = {
+      id: Date.now(),
+      event: eventName,
+      data: eventData
+    }
+
+    console.log(`[SSE] 广播消息开始 - 用户: ${userId}, 事件: ${eventName}, 消息ID: ${newMessage.id}`)
+
+    console.log(`[SSE] 步骤1: 读取现有消息 - 用户: ${userId}, 键: ${messageKey}`)
+    const existingJson = await env.IMAGES_KV.get(messageKey, 'text')
+    console.log(`[SSE] 步骤1完成 - 用户: ${userId}, 是否存在: ${!!existingJson}, 类型: ${typeof existingJson}, 长度: ${existingJson ? existingJson.length : 0}`)
+    
+    console.log(`[SSE] 步骤2: 解析消息数组`)
+    const messages = existingJson ? JSON.parse(existingJson) : []
+    messages.push(newMessage)
+    console.log(`[SSE] 步骤2完成 - 用户: ${userId}, 消息总数: ${messages.length}`)
+
+    console.log(`[SSE] 步骤3: 序列化消息`)
+    const messagesJson = JSON.stringify(messages)
+    console.log(`[SSE] 步骤3完成 - 用户: ${userId}, 序列化长度: ${messagesJson.length}`)
+    
+    console.log(`[SSE] 步骤4: 存储到KV - 用户: ${userId}`)
+    await env.IMAGES_KV.put(messageKey, messagesJson)
+    console.log(`[SSE] 步骤4完成 - 用户: ${userId}`)
+    
+    console.log(`[SSE] 步骤5: 验证存储 - 用户: ${userId}`)
+    const verifyJson = await env.IMAGES_KV.get(messageKey)
+    console.log(`[SSE] 步骤5完成 - 用户: ${userId}, 验证结果: ${verifyJson ? '成功' : '失败'}, 长度: ${verifyJson ? verifyJson.length : 0}`)
+    
+    if (verifyJson) {
+      const verifyMessages = JSON.parse(verifyJson)
+      console.log(`[SSE] 验证解析 - 用户: ${userId}, 消息数: ${verifyMessages.length}, 最后消息ID: ${verifyMessages[verifyMessages.length - 1]?.id}`)
+    }
+  } catch (error: any) {
+    console.log(`[SSE] 广播失败: ${error.message}`)
+    console.log(`[SSE] 错误堆栈: ${error.stack}`)
+  }
 }
 
 const getAllowedOrigins = (env: Env): string[] => {
   if (!env.ALLOWED_ORIGINS) {
-    return ['http://localhost:5173', 'http://localhost:8787']
+    return ['http://localhost:5173', 'http://localhost:8787', 'http://127.0.0.1:8080', 'http://localhost:8080']
   }
   return env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
 }
@@ -26,7 +272,7 @@ const getCorsHeaders = (request: Request, env: Env): Record<string, string> => {
   const allowedOrigins = getAllowedOrigins(env)
 
   if (!origin) {
-    log(`CORS: 直接访问，无 Origin 头`, 'info')
+    // log(`CORS: 直接访问，无 Origin 头`, 'info')
     return {
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token'
@@ -40,7 +286,7 @@ const getCorsHeaders = (request: Request, env: Env): Record<string, string> => {
   })
 
   if (!matched) {
-    log(`CORS: 不允许的来源 - Origin: ${origin}, 允许的来源: ${allowedOrigins.join(', ')}`, 'warn')
+    // log(`CORS: 不允许的来源 - Origin: ${origin}, 允许的来源: ${allowedOrigins.join(', ')}`, 'warn')
     return {
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token'
@@ -520,7 +766,7 @@ const checkRateLimit = async (ip: string, env: Env, requestId?: string, action: 
     }
 
     if (existing.count >= limit) {
-      log(`速率限制触发 - IP: ${ip}, Action: ${action}`, 'warn', requestId)
+      // log(`速率限制触发 - IP: ${ip}, Action: ${action}`, 'warn', requestId)
       return false
     }
 
@@ -529,7 +775,7 @@ const checkRateLimit = async (ip: string, env: Env, requestId?: string, action: 
     `).bind(now, key).run()
     return true
   } catch (error: any) {
-    log(`速率限制检查失败: ${error.message}`, 'error', requestId)
+    // log(`速率限制检查失败: ${error.message}`, 'error', requestId)
     return true
   }
 }
@@ -546,7 +792,7 @@ const MAX_REQUEST_SIZE = 10 * 1024 * 1024
 const checkRequestSize = (request: Request, corsHeaders: Record<string, string>, requestId?: string): Response | null => {
   const contentLength = request.headers.get('Content-Length')
   if (contentLength && parseInt(contentLength) > MAX_REQUEST_SIZE) {
-    log('请求体过大', 'warn', requestId)
+    // log('请求体过大', 'warn', requestId)
     return errorResponse('请求体过大', 413, corsHeaders, requestId)
   }
   return null
@@ -559,31 +805,31 @@ interface MiddlewareResult {
 }
 
 const authenticate = async (request: Request, env: Env, corsHeaders: Record<string, string>, requestId?: string): Promise<MiddlewareResult> => {
-  log(`[AUTH] 开始认证`, 'info', requestId)
+  // log(`[AUTH] 开始认证`, 'info', requestId)
   
   const token = verifyToken(request)
-  log(`[AUTH] Token: ${token ? '存在' : '不存在'}`, 'info', requestId)
+  // log(`[AUTH] Token: ${token ? '存在' : '不存在'}`, 'info', requestId)
   
   if (!token) {
     return { success: false, response: errorResponse('未登录', 401, corsHeaders) }
   }
 
   const session = await d1Sessions.getById(env, token)
-  log(`[AUTH] Session: ${session ? '存在' : '不存在'}`, 'info', requestId)
+  // log(`[AUTH] Session: ${session ? '存在' : '不存在'}`, 'info', requestId)
   
   if (!session) {
     return { success: false, response: errorResponse('Token 无效', 401, corsHeaders) }
   }
 
-  log(`[AUTH] Session ID: ${session.id}, User ID: ${session.user_id}`, 'info', requestId)
+  // log(`[AUTH] Session ID: ${session.id}, User ID: ${session.user_id}`, 'info', requestId)
   
   if (!session.id) {
     return { success: false, response: errorResponse('会话ID无效', 401, corsHeaders) }
   }
 
-  log(`[AUTH] 准备返回成功结果`, 'info', requestId)
+  // log(`[AUTH] 准备返回成功结果`, 'info', requestId)
   const result = { success: true, session }
-  log(`[AUTH] 返回结果: success=${result.success}, session=${result.session ? '存在' : '不存在'}`, 'info', requestId)
+  // log(`[AUTH] 返回结果: success=${result.success}, session=${result.session ? '存在' : '不存在'}`, 'info', requestId)
   return result
 }
 
@@ -591,17 +837,17 @@ const validateCsrf = async (request: Request, env: Env, corsHeaders: Record<stri
   const csrfToken = getCsrfToken(request)
   
   if (!csrfToken) {
-    log('CSRF Token缺失', 'warn', requestId)
+    // log('CSRF Token缺失', 'warn', requestId)
     return { success: false, response: errorResponse('CSRF Token 缺失', 403, corsHeaders, requestId) }
   }
   
   if (!session.csrf_token) {
-    log('会话CSRF Token未初始化', 'warn', requestId)
+    // log('会话CSRF Token未初始化', 'warn', requestId)
     return { success: false, response: errorResponse('会话无效', 403, corsHeaders, requestId) }
   }
   
   if (session.csrf_token !== csrfToken) {
-    log('CSRF Token验证失败', 'warn', requestId)
+    // log('CSRF Token验证失败', 'warn', requestId)
     return { success: false, response: errorResponse('CSRF Token 无效', 403, corsHeaders, requestId) }
   }
   
@@ -624,28 +870,28 @@ const d1Sessions = {
   },
 
   getById: async (env: Env, id: string): Promise<Session | null> => {
-    console.log(`[d1Sessions.getById] 会话ID: ${id}`)
+    // console.log(`[d1Sessions.getById] 会话ID: ${id}`)
     const result = await env.SUNPANEL_DB.prepare(`
       SELECT id, user_id, username, role, csrf_token, expires_at, created_at
       FROM sessions WHERE id = ?
     `).bind(id).first()
-    console.log(`[d1Sessions.getById] 查询结果: ${result ? JSON.stringify(result) : 'null'}`)
+    // console.log(`[d1Sessions.getById] 查询结果: ${result ? JSON.stringify(result) : 'null'}`)
 
     if (!result) return null
     
     if (!result.id) {
-      console.log(`[d1Sessions.getById] 会话ID为空`)
+      // console.log(`[d1Sessions.getById] 会话ID为空`)
       return null
     }
 
     const now = Date.now()
     if (result.expires_at && now > result.expires_at) {
-      console.log(`[d1Sessions.getById] 会话已过期`)
+      // console.log(`[d1Sessions.getById] 会话已过期`)
       await d1Sessions.delete(env, id)
       return null
     }
 
-    console.log(`[d1Sessions.getById] 返回会话: id=${result.id}, user_id=${result.user_id}`)
+    // console.log(`[d1Sessions.getById] 返回会话: id=${result.id}, user_id=${result.user_id}`)
     return result as Session
   },
 
@@ -920,14 +1166,14 @@ const d1Items = {
 
 const d1Settings = {
   get: async (env: Env, userId: number = 1): Promise<Settings> => {
-    console.log(`[d1Settings.get] 用户ID: ${userId}`)
+    // console.log(`[d1Settings.get] 用户ID: ${userId}`)
     const result = await env.SUNPANEL_DB.prepare(`
       SELECT theme, language, wallpaper, wallpaper_type, show_search_bar, search_engine,
              items_per_row, mobile_items_per_row, tablet_items_per_row, desktop_items_per_row,
              show_group_names, custom_css, custom_js, created_at
       FROM settings WHERE user_id = ?
     `).bind(userId).first()
-    console.log(`[d1Settings.get] 查询结果: ${result ? '存在' : '不存在'}`)
+    // console.log(`[d1Settings.get] 查询结果: ${result ? '存在' : '不存在'}`)
 
     if (!result) {
       const now = new Date().toISOString()
@@ -1176,17 +1422,17 @@ export default {
     const method = request.method
     const corsHeaders = getCorsHeaders(request, env)
 
-    log(`请求开始 - Method: ${method}, Path: ${url.pathname}, Origin: ${request.headers.get('Origin') || 'unknown'}`, 'info', requestId)
+    // log(`请求开始 - Method: ${method}, Path: ${url.pathname}, Origin: ${request.headers.get('Origin') || 'unknown'}`, 'info', requestId)
     
-    if (url.pathname === '/api/users/profile' && method === 'PUT') {
-      log(`[DEBUG] PUT /api/users/profile 请求已接收`, 'info', requestId)
-      const authHeader = request.headers.get('Authorization')
-      log(`[DEBUG] Authorization header: ${authHeader ? '存在' : '不存在'}`, 'info', requestId)
-      const csrfHeader = request.headers.get('X-CSRF-Token')
-      log(`[DEBUG] X-CSRF-Token header: ${csrfHeader ? '存在' : '不存在'}`, 'info', requestId)
-      const cookieHeader = request.headers.get('Cookie')
-      log(`[DEBUG] Cookie header: ${cookieHeader ? '存在' : '不存在'}`, 'info', requestId)
-    }
+    // if (url.pathname === '/api/users/profile' && method === 'PUT') {
+    //   log(`[DEBUG] PUT /api/users/profile 请求已接收`, 'info', requestId)
+    //   const authHeader = request.headers.get('Authorization')
+    //   log(`[DEBUG] Authorization header: ${authHeader ? '存在' : '不存在'}`, 'info', requestId)
+    //   const csrfHeader = request.headers.get('X-CSRF-Token')
+    //   log(`[DEBUG] X-CSRF-Token header: ${csrfHeader ? '存在' : '不存在'}`, 'info', requestId)
+    //   const cookieHeader = request.headers.get('Cookie')
+    //   log(`[DEBUG] Cookie header: ${cookieHeader ? '存在' : '不存在'}`, 'info', requestId)
+    // }
 
     if (method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders })
@@ -1196,37 +1442,34 @@ export default {
       if (url.pathname.startsWith('/gallery/images/') && method === 'GET') {
         const filename = url.pathname.substring('/gallery/images/'.length)
         
-        log(`请求图片: ${filename}`, 'info', requestId)
+        // log(`请求图片: ${filename}`, 'info', requestId)
         
         try {
-          // 先查询图片信息并验证权限
           const imageInfo = await env.SUNPANEL_DB.prepare(`
             SELECT user_id, is_public, content_type FROM images WHERE filename = ?
           `).bind(filename).first()
 
           if (!imageInfo) {
-            log(`图片不存在: ${filename}`, 'warn', requestId)
+            // log(`图片不存在: ${filename}`, 'warn', requestId)
             return new Response('图片不存在', { status: 404 })
           }
 
-          // 验证权限
           if (!imageInfo.is_public) {
             const authResult = await authenticate(request, env, corsHeaders)
             if (!authResult.success) {
-              log(`未认证访问私有图片: ${filename}`, 'warn', requestId)
+              // log(`未认证访问私有图片: ${filename}`, 'warn', requestId)
               return authResult.response!
             }
             if (imageInfo.user_id !== authResult.session!.user_id) {
-              log(`越权访问图片: ${filename}`, 'warn', requestId)
+              // log(`越权访问图片: ${filename}`, 'warn', requestId)
               return errorResponse('无权访问此图片', 403, corsHeaders, requestId)
             }
           }
 
-          // 首先尝试从 KV 读取图片
           const kvData = await env.IMAGES_KV.get(filename, 'arrayBuffer')
           
           if (kvData) {
-            log(`从 KV 读取图片成功`, 'info', requestId)
+            // log(`从 KV 读取图片成功`, 'info', requestId)
             const contentType = imageInfo.content_type || 'application/octet-stream'
             
             return new Response(kvData, {
@@ -1238,17 +1481,16 @@ export default {
             })
           }
           
-          // 如果 KV 没有，尝试从 D1 读取（向后兼容）
           const result = await env.SUNPANEL_DB.prepare(`
             SELECT content_type, data FROM images WHERE filename = ?
           `).bind(filename).first()
 
           if (!result || !result.data) {
-            log('图片数据为空', 'error', requestId)
+            // log('图片数据为空', 'error', requestId)
             return new Response('图片数据为空', { status: 500 })
           }
 
-          log(`找到图片, content_type: ${result.content_type}`, 'info', requestId)
+          // log(`找到图片, content_type: ${result.content_type}`, 'info', requestId)
 
           const base64Data = result.data as string
           const binaryStr = atob(base64Data)
@@ -1268,49 +1510,49 @@ export default {
             }
           })
         } catch (error: any) {
-          log(`图片处理失败: ${error.message}`, 'error', requestId)
+          // log(`图片处理失败: ${error.message}`, 'error', requestId)
           return new Response('图片处理失败', { status: 500 })
         }
       }
 
       if (!env.ASSETS) {
-        log('静态资源服务未配置', 'warn', requestId)
+        // log('静态资源服务未配置', 'warn', requestId)
         return new Response('静态资源服务未配置', { status: 503 })
       }
       
       try {
         const assetResponse = await env.ASSETS.fetch(request)
         if (assetResponse.status !== 404) {
-          log(`静态资源服务成功 - Status: ${assetResponse.status}`, 'info', requestId)
+          // log(`静态资源服务成功 - Status: ${assetResponse.status}`, 'info', requestId)
           return assetResponse
         }
         
-        log('静态资源未找到', 'warn', requestId)
+        // log('静态资源未找到', 'warn', requestId)
         return new Response('Not Found', { status: 404 })
       } catch (error: any) {
-        log(`静态资源服务错误: ${error.message}`, 'error', requestId)
+        // log(`静态资源服务错误: ${error.message}`, 'error', requestId)
         return new Response('静态资源服务错误', { status: 500 })
       }
     }
 
     if (path === '/health' && method === 'GET') {
-      log('健康检查成功', 'info', requestId)
+      // log('健康检查成功', 'info', requestId)
       return jsonResponse({ status: 'ok', timestamp: new Date().toISOString(), requestId }, 200, corsHeaders)
     }
     if (path === '/favicon.svg' && method === 'GET') {
-      log('获取 favicon 成成功', 'info', requestId)
+      // log('获取 favicon 成成功', 'info', requestId)
       return new Response('../public/favicon.svg', { status: 200, headers: { 'Content-Type': 'image/svg+xml' } })
     }
 
     const sizeError = checkRequestSize(request, corsHeaders, requestId)
     if (sizeError) {
-      log('请求体过大', 'warn', requestId)
+      // log('请求体过大', 'warn', requestId)
       return sizeError
     }
 
     const clientIp = getClientIp(request)
     if (!await checkRateLimit(clientIp, env, requestId)) {
-      log('速率限制触发', 'warn', requestId)
+      // log('速率限制触发', 'warn', requestId)
       await auditLog(env, 'RATE_LIMIT_EXCEEDED', {
         ip: clientIp,
         userAgent: request.headers.get('User-Agent') || undefined,
@@ -1339,14 +1581,14 @@ export default {
           }
 
           const { username, password } = validation.data
-          log(`尝试登录用户: ${username}`, 'info', requestId)
+          // log(`尝试登录用户: ${username}`, 'info', requestId)
 
           const result = await env.SUNPANEL_DB.prepare(`
             SELECT id, username, password, nickname, role FROM users WHERE username = ?
           `).bind(username).first()
 
           if (!result) {
-            log(`用户不存在: ${username}`, 'warn', requestId)
+            // log(`用户不存在: ${username}`, 'warn', requestId)
             await auditLog(env, 'LOGIN_FAILED', {
               username: username,
               ip: clientIp,
@@ -1357,10 +1599,10 @@ export default {
             return errorResponse('用户名或密码错误', 401, corsHeaders, requestId)
           }
 
-          log(`找到用户: ${result.username}, 验证密码...`, 'info', requestId)
+          // log(`找到用户: ${result.username}, 验证密码...`, 'info', requestId)
           const isPasswordValid = await verifyPassword(password, result.password)
           if (!isPasswordValid) {
-            log(`密码验证失败: ${username}`, 'warn', requestId)
+            // log(`密码验证失败: ${username}`, 'warn', requestId)
             await auditLog(env, 'LOGIN_FAILED', {
               userId: Number(result.id),
               username: result.username,
@@ -1417,7 +1659,7 @@ export default {
             headers
           })
         } catch (error: any) {
-          log(`登录失败: ${error.message}`, 'error', requestId)
+          // log(`登录失败: ${error.message}`, 'error', requestId)
           return errorResponse('登录失败', 500, corsHeaders, requestId)
         }
       }
@@ -1512,7 +1754,7 @@ export default {
           order: validation.data.order
         }, authResult.session!.user_id)
 
-        return jsonResponse({
+        const groupData = {
           id: newGroup.id?.toString(),
           name: newGroup.name,
           icon: newGroup.icon,
@@ -1520,7 +1762,12 @@ export default {
           order: newGroup.order_index,
           createdAt: newGroup.created_at,
           updatedAt: newGroup.updated_at
-        }, 201, corsHeaders, requestId)
+        }
+
+        console.log(`[SSE] 触发分组创建广播 - 用户ID: ${authResult.session!.user_id}`)
+await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'groupCreated', data: groupData }, env)
+
+        return jsonResponse(groupData, 201, corsHeaders, requestId)
       }
 
       if (path.match(/^\/groups\/[^/]+$/) && method === 'PUT') {
@@ -1548,7 +1795,7 @@ export default {
 
         if (!updated) return errorResponse('分组不存在', 404, corsHeaders, requestId)
 
-        return jsonResponse({
+        const groupData = {
           id: updated.id?.toString(),
           name: updated.name,
           icon: updated.icon,
@@ -1556,7 +1803,11 @@ export default {
           order: updated.order_index,
           createdAt: updated.created_at,
           updatedAt: updated.updated_at
-        }, 200, corsHeaders, requestId)
+        }
+
+        await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'groupUpdated', data: groupData }, env)
+
+        return jsonResponse(groupData, 200, corsHeaders, requestId)
       }
 
       if (path.match(/^\/groups\/[^/]+$/) && method === 'DELETE') {
@@ -1570,6 +1821,8 @@ export default {
         if (isNaN(id)) return errorResponse('无效的分组ID', 400, corsHeaders, requestId)
 
         await d1Groups.delete(env, id)
+
+        await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'groupDeleted', data: { id: id.toString() } }, env)
 
         return jsonResponse({ success: true }, 200, corsHeaders, requestId)
       }
@@ -1645,7 +1898,7 @@ export default {
           color: validation.data.color
         }, authResult.session!.user_id)
 
-        return jsonResponse({
+        const itemData = {
           id: newItem.id?.toString(),
           name: newItem.name,
           url: newItem.url,
@@ -1660,7 +1913,11 @@ export default {
           color: newItem.color || '',
           createdAt: newItem.created_at,
           updatedAt: newItem.updated_at
-        }, 201, corsHeaders, requestId)
+        }
+
+        await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'itemCreated', data: itemData }, env)
+
+        return jsonResponse(itemData, 201, corsHeaders, requestId)
       }
 
       if (path.match(/^\/items\/[^/]+$/) && method === 'PUT') {
@@ -1710,7 +1967,7 @@ export default {
 
         if (!updated) return errorResponse('项目不存在', 404, corsHeaders, requestId)
 
-        return jsonResponse({
+        const itemData = {
           id: updated.id?.toString(),
           name: updated.name,
           url: updated.url,
@@ -1725,7 +1982,11 @@ export default {
           color: updated.color || '',
           createdAt: updated.created_at,
           updatedAt: updated.updated_at
-        }, 200, corsHeaders, requestId)
+        }
+
+        await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'itemUpdated', data: itemData }, env)
+
+        return jsonResponse(itemData, 200, corsHeaders, requestId)
       }
 
       if (path.match(/^\/items\/[^/]+$/) && method === 'DELETE') {
@@ -1739,6 +2000,8 @@ export default {
         if (isNaN(id)) return errorResponse('无效的项目ID', 400, corsHeaders, requestId)
 
         await d1Items.delete(env, id)
+
+        await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'itemDeleted', data: { id: id.toString() } }, env)
 
         return jsonResponse({ success: true }, 200, corsHeaders, requestId)
       }
@@ -1794,7 +2057,7 @@ export default {
           customJS: validation.data.customJS
         }, authResult.session!.user_id)
 
-        return jsonResponse({
+        const settingsData = {
           theme: updated.theme,
           language: updated.language,
           wallpaper: updated.wallpaper,
@@ -1807,16 +2070,28 @@ export default {
           desktopItemsPerRow: updated.desktopItemsPerRow || 6,
           showGroupNames: updated.showGroupNames === 1,
           customCSS: updated.customCSS
-        }, 200, corsHeaders, requestId)
+        }
+
+        await broadcastToUserOld(authResult.session!.user_id, 'settings_changed', settingsData, env)
+
+        return jsonResponse(settingsData, 200, corsHeaders, requestId)
       }
 
       if (path === '/global-settings' && method === 'GET') {
         const url = new URL(request.url)
         const language = url.searchParams.get('language') || 'zh-CN'
 
-        const globalSettings = await d1GlobalSettings.get(env, language)
+        let globalSettings = await d1GlobalSettings.get(env, language)
+        
         if (!globalSettings) {
-          return errorResponse('Global settings not found', 404, corsHeaders, requestId)
+          console.log(`[SSE] 全局设置不存在，创建默认设置 - 语言: ${language}`)
+          globalSettings = await d1GlobalSettings.create(env, {
+            language,
+            websiteTitle: 'SunPanel',
+            websiteDescription: '',
+            pageTexts: {},
+            footerText: ''
+          })
         }
 
         return jsonResponse({
@@ -1857,13 +2132,17 @@ export default {
           return errorResponse('Global settings not found', 404, corsHeaders, requestId)
         }
 
-        return jsonResponse({
+        const globalSettingsData = {
           language: updated.language,
           websiteTitle: updated.websiteTitle,
           websiteDescription: updated.websiteDescription,
           pageTexts: updated.pageTexts,
           footerText: updated.footerText
-        }, 200, corsHeaders, requestId)
+        }
+
+        await broadcastToUserOld(authResult.session!.user_id, 'global_settings_changed', globalSettingsData, env)
+
+        return jsonResponse(globalSettingsData, 200, corsHeaders, requestId)
       }
 
       if (path === '/global-settings' && method === 'POST') {
@@ -2196,74 +2475,74 @@ export default {
       }
 
       if (path === '/users/profile' && method === 'PUT') {
-        log(`[PUT /users/profile] 进入端点处理`, 'info', requestId)
+        // log(`[PUT /users/profile] 进入端点处理`, 'info', requestId)
         
         try {
-          log(`[PUT /users/profile] 开始认证`, 'info', requestId)
+          // log(`[PUT /users/profile] 开始认证`, 'info', requestId)
           const authResult = await authenticate(request, env, corsHeaders, requestId)
-          log(`[PUT /users/profile] 认证完成, 结果: ${authResult.success}`, 'info', requestId)
+          // log(`[PUT /users/profile] 认证完成, 结果: ${authResult.success}`, 'info', requestId)
           
           if (!authResult.success) {
-            log(`[PUT /users/profile] 认证失败`, 'warn', requestId)
+            // log(`[PUT /users/profile] 认证失败`, 'warn', requestId)
             return authResult.response!
           }
           
-          log(`[PUT /users/profile] 认证成功, 检查会话`, 'info', requestId)
+          // log(`[PUT /users/profile] 认证成功, 检查会话`, 'info', requestId)
           
           if (!authResult.session) {
-            log(`[PUT /users/profile] 会话为空`, 'warn', requestId)
+            // log(`[PUT /users/profile] 会话为空`, 'warn', requestId)
             return errorResponse('会话无效', 401, corsHeaders, requestId)
           }
           
-          log(`[PUT /users/profile] 会话有效, ID: ${authResult.session.id}, UserID: ${authResult.session.user_id}`, 'info', requestId)
+          // log(`[PUT /users/profile] 会话有效, ID: ${authResult.session.id}, UserID: ${authResult.session.user_id}`, 'info', requestId)
           
-          log(`[PUT /users/profile] 开始CSRF验证`, 'info', requestId)
+          // log(`[PUT /users/profile] 开始CSRF验证`, 'info', requestId)
           const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session, requestId)
-          log(`[PUT /users/profile] CSRF验证完成, 结果: ${csrfResult.success}`, 'info', requestId)
+          // log(`[PUT /users/profile] CSRF验证完成, 结果: ${csrfResult.success}`, 'info', requestId)
           
           if (!csrfResult.success) {
-            log(`[PUT /users/profile] CSRF验证失败`, 'warn', requestId)
+            // log(`[PUT /users/profile] CSRF验证失败`, 'warn', requestId)
             return csrfResult.response!
           }
 
-          log(`[PUT /users/profile] CSRF验证成功, 开始读取请求体`, 'info', requestId)
+          // log(`[PUT /users/profile] CSRF验证成功, 开始读取请求体`, 'info', requestId)
           
           const body = await request.json()
-          log(`[PUT /users/profile] 请求体: ${JSON.stringify(body)}`, 'info', requestId)
+          // log(`[PUT /users/profile] 请求体: ${JSON.stringify(body)}`, 'info', requestId)
           
           const { nickname, email, avatar, language } = body
 
-          log(`[PUT /users/profile] 更新用户ID: ${authResult.session.user_id}, 语言: ${language}`, 'info', requestId)
+          // log(`[PUT /users/profile] 更新用户ID: ${authResult.session.user_id}, 语言: ${language}`, 'info', requestId)
           
-          log(`[PUT /users/profile] 开始更新 users 表`, 'info', requestId)
+          // log(`[PUT /users/profile] 开始更新 users 表`, 'info', requestId)
           await env.SUNPANEL_DB.prepare(`
             UPDATE users SET nickname = ?, email = ?, avatar = ?, updated_at = ? WHERE id = ?
           `).bind(nickname || null, email || null, avatar || null, new Date().toISOString(), authResult.session.user_id).run()
-          log(`[PUT /users/profile] users 表更新成功`, 'info', requestId)
+          // log(`[PUT /users/profile] users 表更新成功`, 'info', requestId)
 
           if (language) {
-            log(`[PUT /users/profile] 开始更新 settings 表语言: ${language}`, 'info', requestId)
+            // log(`[PUT /users/profile] 开始更新 settings 表语言: ${language}`, 'info', requestId)
             const updateResult = await d1Settings.update(env, { language }, authResult.session.user_id)
-            log(`[PUT /users/profile] settings 表更新成功: ${JSON.stringify(updateResult)}`, 'info', requestId)
+            // log(`[PUT /users/profile] settings 表更新成功: ${JSON.stringify(updateResult)}`, 'info', requestId)
           }
 
-          log(`[PUT /users/profile] 开始查询更新后的用户信息`, 'info', requestId)
+          // log(`[PUT /users/profile] 开始查询更新后的用户信息`, 'info', requestId)
           const updatedUser = await env.SUNPANEL_DB.prepare(`
             SELECT id, username, nickname, email, avatar, role FROM users WHERE id = ?
           `).bind(authResult.session.user_id).first()
 
           if (!updatedUser) {
-            log(`[PUT /users/profile] 用户不存在`, 'warn', requestId)
+            // log(`[PUT /users/profile] 用户不存在`, 'warn', requestId)
             return errorResponse('用户不存在', 404, corsHeaders, requestId)
           }
 
-          log(`[PUT /users/profile] 开始获取 settings`, 'info', requestId)
+          // log(`[PUT /users/profile] 开始获取 settings`, 'info', requestId)
           const settings = await d1Settings.get(env, authResult.session.user_id)
-          log(`[PUT /users/profile] 获取 settings 成功: ${settings.language}`, 'info', requestId)
+          // log(`[PUT /users/profile] 获取 settings 成功: ${settings.language}`, 'info', requestId)
 
-          log(`[PUT /users/profile] 更新成功`, 'info', requestId)
+          // log(`[PUT /users/profile] 更新成功`, 'info', requestId)
           
-          return jsonResponse({
+          const profileData = {
             id: updatedUser.id.toString(),
             username: updatedUser.username,
             nickname: updatedUser.nickname || '用户',
@@ -2271,9 +2550,26 @@ export default {
             avatar: updatedUser.avatar || '',
             role: updatedUser.role,
             language: settings.language || 'zh-CN'
-          }, 200, corsHeaders, requestId)
+          }
+
+          await broadcastToUserOld(authResult.session.user_id, 'settings_changed', {
+            theme: settings.theme || 'light',
+            language: settings.language || 'zh-CN',
+            wallpaper: settings.wallpaper || '#1e293b',
+            wallpaperType: settings.wallpaper_type || 'color',
+            showSearchBar: settings.show_search_bar === 1,
+            searchEngine: settings.search_engine || 'https://www.bing.com/search?q=',
+            itemsPerRow: settings.items_per_row || 6,
+            mobileItemsPerRow: settings.mobile_items_per_row || 2,
+            tabletItemsPerRow: settings.tablet_items_per_row || 3,
+            desktopItemsPerRow: settings.desktop_items_per_row || 6,
+            showGroupNames: settings.show_group_names === 1,
+            customCSS: settings.custom_css || ''
+          }, env)
+          
+          return jsonResponse(profileData, 200, corsHeaders, requestId)
         } catch (error: any) {
-          log(`[PUT /users/profile] 错误: ${error.message}, 堆栈: ${error.stack}`, 'error', requestId)
+          // log(`[PUT /users/profile] 错误: ${error.message}, 堆栈: ${error.stack}`, 'error', requestId)
           return errorResponse('更新失败: ' + error.message, 500, corsHeaders, requestId)
         }
       }
@@ -2442,7 +2738,7 @@ export default {
 
           return jsonResponse({ avatar: avatarUrl }, 200, corsHeaders, requestId)
         } catch (error: any) {
-          log(`头像上传失败: ${error.message}`, 'error', requestId)
+          // log(`头像上传失败: ${error.message}`, 'error', requestId)
           return errorResponse('头像上传失败', 500, corsHeaders, requestId)
         }
       }
@@ -2504,13 +2800,13 @@ export default {
             VALUES (?, ?, ?, ?, ?, ?)
           `).bind(username, passwordHash, nickname || username, role, now, now).run()
 
-          log(`新用户注册: ${username}, 角色: ${role}`, 'info', requestId)
+          // log(`新用户注册: ${username}, 角色: ${role}`, 'info', requestId)
 
           return jsonResponse({
             message: '注册成功，请登录'
           }, 201, corsHeaders, requestId)
         } catch (error: any) {
-          log(`注册失败: ${error.message}`, 'error', requestId)
+          // log(`注册失败: ${error.message}`, 'error', requestId)
           return errorResponse('注册失败', 500, corsHeaders, requestId)
         }
       }
@@ -2665,12 +2961,16 @@ export default {
 
           log(`图片元数据插入成功: ${filename}, ID: ${result.meta.last_row_id}`, 'info', requestId)
 
-          return jsonResponse({
+          const imageData = {
             id: result.meta.last_row_id.toString(),
             url: `/gallery/images/${filename}`,
             filename: filename,
             isPublic: isPublic
-          }, 201, corsHeaders, requestId)
+          }
+
+          await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'imageUploaded', data: imageData }, env)
+
+          return jsonResponse(imageData, 201, corsHeaders, requestId)
         } catch (error: any) {
           log(`图片上传失败: ${error.message}`, 'error', requestId)
           return errorResponse('图片上传失败: ' + error.message, 500, corsHeaders, requestId)
@@ -2708,7 +3008,117 @@ export default {
           DELETE FROM images WHERE id = ? AND user_id = ?
         `).bind(id, authResult.session!.user_id).run()
 
+        await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'imageDeleted', data: { id: id.toString() } }, env)
+
         return jsonResponse({ success: true }, 200, corsHeaders, requestId)
+      }
+
+      if (path === '/sse' && method === 'GET') {
+        const authResult = await authenticate(request, env, corsHeaders)
+        if (!authResult.success) return authResult.response!
+
+        const userId = authResult.session!.user_id
+        console.log(`[SSE] SSE 连接请求 - 用户: ${userId}`)
+
+        const encoder = new TextEncoder()
+        const messageKey = `sse_messages_${userId}`
+        const lastMessageIdRef = { value: 0 }
+
+        const sendEvent = (event: string, data: any) => {
+          const eventName = event || 'message'
+          return `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`
+        }
+
+        const stream = new ReadableStream({
+          async start(controller) {
+            controller.enqueue(encoder.encode(sendEvent('connected', { message: 'SSE 连接已建立' })))
+            console.log(`[SSE] SSE 连接已建立 - 用户: ${userId}`)
+
+            const checkMessages = async () => {
+              try {
+                console.log(`[SSE] 检查消息 - 用户: ${userId}`)
+                
+                let messagesJson = await env.IMAGES_KV.get(messageKey, 'text')
+                console.log(`[SSE] KV读取结果 - 用户: ${userId}, 是否存在: ${!!messagesJson}, 类型: ${typeof messagesJson}, 长度: ${messagesJson ? messagesJson.length : 0}`)
+                
+                if (messagesJson) {
+                  console.log(`[SSE] 消息内容 - 用户: ${userId}, 内容: ${messagesJson}`)
+                  try {
+                    const messages: Array<{ id: number; event: string; data: any }> = JSON.parse(messagesJson)
+                    console.log(`[SSE] 解析消息成功 - 用户: ${userId}, 消息总数: ${messages.length}`)
+                    
+                    const newMessages = messages.filter(m => m.id > lastMessageIdRef.value)
+                    console.log(`[SSE] 新消息过滤 - 用户: ${userId}, 过滤前: ${messages.length}, 过滤后: ${newMessages.length}, 最后消息ID: ${lastMessageIdRef.value}`)
+                    
+                    if (newMessages.length > 0) {
+                      console.log(`[SSE] 准备发送消息 - 用户: ${userId}, 数量: ${newMessages.length}`)
+                      for (const msg of newMessages) {
+                        console.log(`[SSE] 发送事件 - 用户: ${userId}, 事件名: ${msg.event}, 消息ID: ${msg.id}`)
+                        controller.enqueue(encoder.encode(sendEvent(msg.event, msg.data)))
+                        lastMessageIdRef.value = msg.id
+                        console.log(`[SSE] 消息已发送 - 用户: ${userId}, 最后消息ID更新为: ${lastMessageIdRef.value}`)
+                      }
+
+                      const remainingMessages = messages.filter(m => m.id > lastMessageIdRef.value)
+                      console.log(`[SSE] 剩余消息 - 用户: ${userId}, 数量: ${remainingMessages.length}`)
+                      if (remainingMessages.length > 0) {
+                        await env.IMAGES_KV.put(messageKey, JSON.stringify(remainingMessages))
+                        console.log(`[SSE] 剩余消息已存储 - 用户: ${userId}`)
+                      } else {
+                        await env.IMAGES_KV.delete(messageKey)
+                        console.log(`[SSE] 消息已清空 - 用户: ${userId}`)
+                      }
+                    } else {
+                      console.log(`[SSE] 无新消息 - 用户: ${userId}`)
+                    }
+                  } catch (parseError) {
+                    console.log(`[SSE] 解析消息失败 - 用户: ${userId}, 错误: ${parseError}`)
+                    await env.IMAGES_KV.delete(messageKey)
+                    console.log(`[SSE] 已删除损坏的消息 - 用户: ${userId}`)
+                  }
+                } else {
+                  console.log(`[SSE] 无消息 - 用户: ${userId}`)
+                }
+              } catch (error) {
+                console.log(`[SSE] 检查消息失败 - 用户: ${userId}, 错误: ${error}`)
+              }
+            }
+
+            await checkMessages()
+
+            const interval = setInterval(async () => {
+              await checkMessages()
+              controller.enqueue(encoder.encode(sendEvent('ping', { timestamp: Date.now() })))
+            }, 5000)
+
+            if (controller.signal) {
+              controller.signal.addEventListener('abort', () => {
+                clearInterval(interval)
+                console.log(`[SSE] SSE 连接断开 - 用户: ${userId}`)
+              })
+            }
+          },
+          cancel() {
+            console.log(`[SSE] SSE 流被取消 - 用户: ${userId}`)
+          }
+        })
+
+        const sseHeaders = new Headers({
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Connection': 'keep-alive',
+          'Transfer-Encoding': 'chunked',
+          'X-Accel-Buffering': 'no',
+          'X-Robots-Tag': 'noindex',
+          'Access-Control-Allow-Origin': request.headers.get('Origin') || '*',
+          'Access-Control-Allow-Credentials': 'true',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-User-Id'
+        })
+
+        return new Response(stream, { 
+          headers: sseHeaders,
+          keepalive: true
+        })
       }
 
       log(`404 Not Found - Method: ${method}, Path: ${path}, Original URL: ${url.pathname}`, 'warn', requestId)

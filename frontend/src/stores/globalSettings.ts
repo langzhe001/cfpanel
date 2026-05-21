@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { GlobalSettings } from '@/types'
 import { globalSettingsApi } from '@/api'
 import { eventBus, EVENTS, useCrossFrameSync } from '@/composables/useEventBus'
@@ -218,6 +218,14 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   const websiteDescription = computed(() => settings.value?.websiteDescription || '')
   const footerText = computed(() => settings.value?.footerText || '')
   const pageTexts = computed(() => settings.value?.pageTexts || {})
+
+  // Watch for websiteTitle changes and update document title
+  watch(websiteTitle, (newTitle) => {
+    if (isBrowser && newTitle) {
+      document.title = newTitle
+      console.log('[globalSettingsStore] 页面标题已更新:', newTitle)
+    }
+  }, { immediate: true })
 
   return {
     settings,

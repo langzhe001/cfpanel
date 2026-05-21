@@ -53,6 +53,10 @@
           </div>
         </div>
         
+        <p v-if="globalSettingsStore.websiteDescription" class="text-lg text-white/80 drop-shadow text-center max-w-2xl mb-6">
+          {{ globalSettingsStore.websiteDescription }}
+        </p>
+        
         <div v-if="settings.showSearchBar" class="w-full max-w-2xl">
           <div class="relative">
             <div class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
@@ -185,10 +189,15 @@
       </div>
     </Modal>
 
-    <style v-if="safeCustomCSS" v-html="safeCustomCSS" />
+ <style v-if="safeCustomCSS" v-html="safeCustomCSS" />
+    
+    <footer v-if="globalSettingsStore.footerText" class="absolute bottom-4 left-0 right-0 text-center">
+      <p class="text-white/60 text-sm drop-shadow">
+        {{ globalSettingsStore.footerText }}
+      </p>
+    </footer>
   </div>
 </template>
-
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -198,6 +207,7 @@ import { useDataStore } from '@/stores/data'
 import { useGlobalSettingsStore } from '@/stores/globalSettings'
 import { usePageTexts } from '@/composables/useI18n'
 import { EVENTS, useCrossFrameSync } from '@/composables/useEventBus'
+import { useSSE } from '@/composables/useSSE'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import ErrorMessage from '@/components/ErrorMessage.vue'
 import Modal from '@/components/Modal.vue'
@@ -222,6 +232,96 @@ const adminModalOpen = ref(false)
 const adminUrl = ref('')
 let timeInterval: number | null = null
 let globalSettingsUnsubscribe: (() => void) | null = null
+let sseUnsubscribe: (() => void) | null = null
+const isInitializing = ref(false)
+
+const { connect: connectSSE, onMessage: onSSEMessage, disconnect: disconnectSSE, on: onSSEEvent } = useSSE()
+
+// 页面初始化函数 - 获取所有需要的数据
+const initializePage = async () => {
+  console.log('[Home] 开始页面初始化...')
+  isInitializing.value = true
+  
+  try {
+    // 1. 首先加载个人设置（包含主题、壁纸、搜索栏等）
+    console.log('[Home] 1. 加载个人设置...')
+    await settingsStore.loadSettings()
+    console.log('[Home] 个人设置加载完成:', settingsStore.settings)
+    
+    // 2. 加载全局设置（包含网站标题、描述、页脚等）
+    console.log('[Home] 2. 加载全局设置...')
+    await globalSettingsStore.loadSettings()
+    console.log('[Home] 全局设置加载完成:', globalSettingsStore.settings)
+    
+    // 3. 如果已登录，加载用户信息和数据
+    if (authStore.isSessionValid()) {
+      console.log('[Home] 3. 用户已登录，加载用户信息...')
+      await authStore.fetchUser()
+      console.log('[Home] 用户信息加载完成:', authStore.user)
+      
+      console.log('[Home] 4. 加载分组和项目数据...')
+      await dataStore.fetchAll()
+      console.log('[Home] 数据加载完成 - 分组:', dataStore.groups.length, '项目:', dataStore.items.length)
+    } else {
+      console.log('[Home] 3. 用户未登录，跳过用户信息和数据加载')
+    }
+    
+    console.log('[Home] 页面初始化完成')
+  } catch (err) {
+    console.error('[Home] 页面初始化失败:', err)
+  } finally {
+    isInitializing.value = false
+  }
+}
+
+const refreshAll = async () => {
+  console.log('[Home] 开始刷新所有设置...')
+  
+  try {
+    await settingsStore.loadSettings(true)
+    await globalSettingsStore.loadSettings(undefined, true)
+    
+    if (authStore.isSessionValid()) {
+      await dataStore.fetchAll()
+    }
+    
+    console.log('[Home] 刷新完成')
+  } catch (err) {
+    console.error('[Home] 刷新失败:', err)
+  }
+}
+
+const refreshGlobalSettings = async () => {
+  console.log('[Home] 刷新全局设置...')
+  try {
+    await globalSettingsStore.loadSettings(undefined, true)
+    console.log('[Home] 全局设置刷新完成')
+  } catch (err) {
+    console.error('[Home] 全局设置刷新失败:', err)
+  }
+}
+
+const refreshLayoutSettings = async () => {
+  console.log('[Home] 刷新布局设置...')
+  try {
+    await settingsStore.loadSettings(true)
+    console.log('[Home] 布局设置刷新完成')
+  } catch (err) {
+    console.error('[Home] 布局设置刷新失败:', err)
+  }
+}
+
+const refreshData = async () => {
+  console.log('[Home] 刷新数据...')
+  try {
+    if (authStore.isSessionValid()) {
+      await dataStore.fetchAll()
+    }
+    console.log('[Home] 数据刷新完成')
+  } catch (err) {
+    console.error('[Home] 数据刷新失败:', err)
+  }
+}
 
 const updateTime = () => {
   const now = new Date()
@@ -293,7 +393,8 @@ const isDark = computed(() => settingsStore.settings.theme === 'dark')
 const settings = computed(() => settingsStore.settings)
 const groups = computed(() => dataStore.groups)
 const items = computed(() => dataStore.items)
-const isLoading = computed(() => dataStore.isLoading)
+// 加载状态：页面初始化中 OR 数据加载中
+const isLoading = computed(() => isInitializing.value || dataStore.isLoading)
 
 const safeCustomCSS = computed(() => {
   return sanitizeCSS(settings.value.customCSS)
@@ -454,13 +555,10 @@ const handleResize = () => {
 }
 
 onMounted(async () => {
-  await settingsStore.loadSettings()
+  // 执行页面初始化
+  await initializePage()
 
-  if (authStore.isSessionValid()) {
-    await authStore.fetchUser()
-    await dataStore.fetchAll()
-  }
-
+  // 更新时间和设置定时器
   updateTime()
   timeInterval = window.setInterval(updateTime, 1000)
 
@@ -472,6 +570,137 @@ onMounted(async () => {
     console.log('[Home] 收到后台设置变更通知，更新全局设置')
     globalSettingsStore.settings = { ...newSettings }
   })
+
+  // 连接 SSE 服务（服务器推送）- 在数据加载完成后连接
+  connectSSE()
+  
+  const handleGroupCreated = (data: any) => {
+    console.log('[Home] 收到分组创建通知:', data)
+    dataStore.groups.push(data)
+    dataStore.groups.sort((a, b) => a.order - b.order)
+  }
+
+  const handleGroupUpdated = (data: any) => {
+    console.log('[Home] 收到分组更新通知:', data)
+    const index = dataStore.groups.findIndex(g => g.id === data.id)
+    if (index !== -1) {
+      dataStore.groups[index] = data
+    }
+    dataStore.groups.sort((a, b) => a.order - b.order)
+  }
+
+  const handleGroupDeleted = (data: any) => {
+    console.log('[Home] 收到分组删除通知:', data)
+    dataStore.groups = dataStore.groups.filter(g => g.id !== data.id)
+    dataStore.items = dataStore.items.filter(i => i.groupId !== data.id)
+  }
+
+  const handleItemCreated = (data: any) => {
+    console.log('[Home] 收到项目创建通知:', data)
+    dataStore.items.push(data)
+    dataStore.items.sort((a, b) => a.order - b.order)
+  }
+
+  const handleItemUpdated = (data: any) => {
+    console.log('[Home] 收到项目更新通知:', data)
+    const index = dataStore.items.findIndex(i => i.id === data.id)
+    if (index !== -1) {
+      dataStore.items[index] = data
+    }
+    dataStore.items.sort((a, b) => a.order - b.order)
+  }
+
+  const handleItemDeleted = (data: any) => {
+    console.log('[Home] 收到项目删除通知:', data)
+    dataStore.items = dataStore.items.filter(i => i.id !== data.id)
+  }
+
+  const groupCreatedUnsubscribe = onSSEEvent('groupCreated', handleGroupCreated)
+  const groupUpdatedUnsubscribe = onSSEEvent('groupUpdated', handleGroupUpdated)
+  const groupDeletedUnsubscribe = onSSEEvent('groupDeleted', handleGroupDeleted)
+  const itemCreatedUnsubscribe = onSSEEvent('itemCreated', handleItemCreated)
+  const itemUpdatedUnsubscribe = onSSEEvent('itemUpdated', handleItemUpdated)
+  const itemDeletedUnsubscribe = onSSEEvent('itemDeleted', handleItemDeleted)
+  
+  const handleSettingsChanged = async (data: any) => {
+    console.log('[Home] 收到设置变更通知:', data)
+    await settingsStore.loadSettings(true)
+    
+    // 如果语言发生变化，切换全局设置的语言
+    const newLanguage = settingsStore.settings.language
+    if (newLanguage && newLanguage !== globalSettingsStore.currentLanguage) {
+      console.log(`[Home] 语言变更: ${globalSettingsStore.currentLanguage} -> ${newLanguage}`)
+      await globalSettingsStore.setLanguage(newLanguage)
+    }
+  }
+  
+  const handleGlobalSettingsChanged = (data: any) => {
+    console.log('[Home] 收到全局设置变更通知:', data)
+    globalSettingsStore.loadSettings(undefined, true)
+  }
+  
+  const settingsChangedUnsubscribe = onSSEEvent('settingsChanged', handleSettingsChanged)
+  const globalSettingsChangedUnsubscribe = onSSEEvent('globalSettingsChanged', handleGlobalSettingsChanged)
+  
+  sseUnsubscribe = onSSEMessage((message) => {
+    console.log('[Home] 收到 SSE 消息:', message.type)
+    
+    switch (message.type) {
+      case 'globalSettingsChanged':
+        // 全局设置变更，从 API 重新获取
+        globalSettingsStore.loadSettings(undefined, true)
+        break
+      case 'settingsChanged':
+        // 设置变更，从 API 重新获取
+        settingsStore.loadSettings(true)
+        break
+      case 'dataChanged':
+        // 数据变更，直接更新本地数据
+        handleDataChanged(message.data)
+        break
+      case 'refreshAll':
+        refreshAll()
+        break
+      case 'themeChanged':
+        refreshLayoutSettings()
+        break
+      default:
+        console.log('[Home] 未知消息类型:', message.type)
+    }
+  })
+  
+  const handleDataChanged = (data: any) => {
+    if (!data || !data.type) {
+      console.warn('[Home] 无效的数据变更消息:', data)
+      return
+    }
+    
+    console.log('[Home] 数据变更类型:', data.type)
+    
+    switch (data.type) {
+      case 'groupCreated':
+        handleGroupCreated(data.data)
+        break
+      case 'groupUpdated':
+        handleGroupUpdated(data.data)
+        break
+      case 'groupDeleted':
+        handleGroupDeleted(data.data)
+        break
+      case 'itemCreated':
+        handleItemCreated(data.data)
+        break
+      case 'itemUpdated':
+        handleItemUpdated(data.data)
+        break
+      case 'itemDeleted':
+        handleItemDeleted(data.data)
+        break
+      default:
+        console.warn('[Home] 未知的数据变更类型:', data.type)
+        refreshData()
+    }
+  }
 })
 
 onUnmounted(() => {
@@ -483,6 +712,38 @@ onUnmounted(() => {
   // 取消监听
   if (globalSettingsUnsubscribe) {
     globalSettingsUnsubscribe()
+  }
+  
+  // 取消 SSE 事件订阅
+  if (groupCreatedUnsubscribe) {
+    groupCreatedUnsubscribe()
+  }
+  if (groupUpdatedUnsubscribe) {
+    groupUpdatedUnsubscribe()
+  }
+  if (groupDeletedUnsubscribe) {
+    groupDeletedUnsubscribe()
+  }
+  if (itemCreatedUnsubscribe) {
+    itemCreatedUnsubscribe()
+  }
+  if (itemUpdatedUnsubscribe) {
+    itemUpdatedUnsubscribe()
+  }
+  if (itemDeletedUnsubscribe) {
+    itemDeletedUnsubscribe()
+  }
+  if (settingsChangedUnsubscribe) {
+    settingsChangedUnsubscribe()
+  }
+  if (globalSettingsChangedUnsubscribe) {
+    globalSettingsChangedUnsubscribe()
+  }
+  
+  // 断开 SSE 连接
+  disconnectSSE()
+  if (sseUnsubscribe) {
+    sseUnsubscribe()
   }
 })
 </script>
