@@ -21,10 +21,15 @@ export interface Group {
   updatedAt: string
 }
 
+export interface ItemUrl {
+  external?: string
+  internal: string
+}
+
 export interface Item {
   id: string
   name: string
-  url: string
+  url: string | ItemUrl
   icon: string
   description: string
   groupId: string

@@ -177,14 +177,23 @@
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ t('groups.url') }}</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ t('groups.url') }} ({{ t('groups.external') }})</label>
             <input 
               v-model="itemForm.url" 
               type="url" 
-              required 
               class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
               :placeholder="t('groups.url')"
             />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ t('groups.internalUrl') || '内网地址' }}</label>
+            <input 
+              v-model="itemForm.internalUrl" 
+              type="text" 
+              class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
+              :placeholder="t('groups.internalUrlPlaceholder') || 'http://192.168.1.xxx:port/path'"
+            />
+            <p class="text-xs text-slate-500 mt-1">{{ t('groups.internalUrlHint') || '支持内网IP地址或域名，如: http://192.168.1.100:8080' }}</p>
           </div>
           <div>
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ t('groups.icon') }} (Iconify)</label>
@@ -235,7 +244,7 @@
             <select 
               v-model="itemForm.groupId" 
               required 
-              class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
+              class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none appearance-none cursor-pointer bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%236B7280%22%20d%3D%22M10.293%203.293L6%207.586%201.707%203.293A1%201%200%2000.293%204.707l5%205a1%201%200%20001.414%200l5-5a1%201%200%2010-1.414-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.75rem_center]"
             >
               <option value="">{{ t('groups.selectGroup') }}</option>
               <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
@@ -309,6 +318,7 @@ const groupForm = reactive({
 const itemForm = reactive({
   name: '',
   url: '',
+  internalUrl: '',
   icon: '',
   description: '',
   groupId: '',
@@ -394,7 +404,43 @@ const deleteGroup = async (id: string) => {
 
 const editItem = (item: Item) => {
   editingItem.value = item
-  Object.assign(itemForm, item)
+  
+  // 处理 URL 字段：可能是字符串、对象或 JSON 字符串
+  if (typeof item.url === 'string') {
+    try {
+      // 尝试解析 JSON 字符串
+      const parsed = JSON.parse(item.url)
+      if (parsed && typeof parsed === 'object') {
+        itemForm.url = parsed.external || ''
+        itemForm.internalUrl = parsed.internal || ''
+      } else {
+        // 不是有效的 JSON 对象，当作普通 URL
+        itemForm.url = item.url
+        itemForm.internalUrl = ''
+      }
+    } catch {
+      // 不是 JSON 格式，当作普通 URL
+      itemForm.url = item.url
+      itemForm.internalUrl = ''
+    }
+  } else if (typeof item.url === 'object' && item.url !== null) {
+    // 已经是对象格式
+    itemForm.url = item.url.external || ''
+    itemForm.internalUrl = item.url.internal || ''
+  } else {
+    itemForm.url = ''
+    itemForm.internalUrl = ''
+  }
+  
+  itemForm.name = item.name
+  itemForm.icon = item.icon || ''
+  itemForm.description = item.description || ''
+  itemForm.groupId = item.groupId
+  itemForm.openInNewTab = item.openInNewTab
+  itemForm.showAsWindow = item.showAsWindow
+  itemForm.windowWidth = item.windowWidth
+  itemForm.windowHeight = item.windowHeight
+  itemForm.color = item.color || ''
   showItemModal.value = true
 }
 
@@ -404,6 +450,7 @@ const closeItemModal = () => {
   Object.assign(itemForm, {
     name: '',
     url: '',
+    internalUrl: '',
     icon: '',
     description: '',
     groupId: '',
@@ -425,8 +472,9 @@ const saveItem = async () => {
       return
     }
     
-    if (!itemForm.url.trim()) {
-      console.error(t('groups.websiteUrlRequired'))
+    // 至少需要一个地址（外网或内网）
+    if (!itemForm.url.trim() && !itemForm.internalUrl.trim()) {
+      console.error(t('groups.websiteUrlRequired') || '请输入外网或内网地址')
       return
     }
     
@@ -440,18 +488,26 @@ const saveItem = async () => {
       return
     }
     
-    const safeUrl = sanitizeUrl(itemForm.url)
-    if (safeUrl === '#' && itemForm.url.trim()) {
-      console.error(t('groups.websiteUrlUnsafe'))
-      return
+    // 构建 URL 字段，如果有内网地址则使用 JSON 格式
+    let urlValue: string | { external?: string; internal: string } = itemForm.url.trim()
+    
+    if (itemForm.internalUrl.trim()) {
+      // 有内网地址时，使用 JSON 格式存储
+      urlValue = {
+        external: itemForm.url.trim() || undefined,
+        internal: itemForm.internalUrl.trim()
+      }
     }
     
     const safeItemForm = {
       ...itemForm,
       name: escapeHtml(itemForm.name.trim()),
-      url: safeUrl,
+      url: urlValue,
       description: escapeHtml(itemForm.description || '').trim()
     }
+    
+    // 删除 internalUrl 字段，避免发送到 API
+    delete (safeItemForm as any).internalUrl
     
     if (editingItem.value) {
       await dataStore.updateItem(editingItem.value.id, safeItemForm)

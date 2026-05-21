@@ -31,6 +31,20 @@
           </svg>
         </button>
         <button 
+          @click="toggleInternalMode"
+          class="p-2 rounded-full hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all hover:scale-110"
+          :title="isInternalMode ? '切换到外网模式' : '切换到内网模式'"
+        >
+          <!-- 内网模式：电脑/服务器图标 -->
+          <svg v-if="isInternalMode" class="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+          </svg>
+          <!-- 外网模式：地球图标 -->
+          <svg v-else class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </button>
+        <button 
           v-if="isLoggedIn"
           @click="handleLogout"
           class="p-2 rounded-full hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all hover:scale-110"
@@ -59,17 +73,73 @@
         
         <div v-if="settings.showSearchBar" class="w-full max-w-2xl">
           <div class="relative">
-            <div class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-              <svg class="w-5 h-5 text-orange-400" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20.71 19.5c-.83-.83-2.17-.83-3.01 0l-2.38 2.38c-.39.39-1.02.39-1.41 0l-4.76-4.76c-.39-.39-.39-1.02 0-1.41l2.38-2.38c.83-.83 2.17-.83 3.01 0l3.35 3.35c.39.39 1.02.39 1.41 0l4.76 4.76c.4.38.4 1.02 0 1.41l-2.37 2.37zM12 6.5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6z"/>
-              </svg>
+            <div class="absolute left-1 top-1/2 -translate-y-1/2">
+              <div class="relative search-engine-selector">
+                <button 
+                  @click="showSearchEngineDropdown = !showSearchEngineDropdown"
+                  class="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-white/50 dark:hover:bg-slate-700/50 transition-colors"
+                >
+                  <div class="w-6 h-6 flex items-center justify-center">
+                    <svg v-if="currentSearchEngineId === 0" class="w-5 h-5" viewBox="0 0 24 24" fill="#0066FF">
+                      <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.52 17.34c-.24.36-.66.48-1.02.24-2.82-1.74-6.36-2.1-10.56-1.14-.42.12-.78-.18-.9-.54-.12-.42.18-.78.54-.9 4.56-1.02 8.52-.6 11.64 1.32.42.18.48.66.3 1.02zm1.44-3.3c-.3.42-.84.6-1.26.3-3.24-1.98-8.16-2.58-11.94-1.38-.48.12-1.02-.12-1.14-.6-.12-.48.12-1.02.6-1.14C9.6 9.9 15 10.56 18.72 12.84c.36.18.54.78.24 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.3c-.6.18-1.2-.18-1.38-.72-.18-.6.18-1.2.72-1.38C9.6 7.98 16.2 8.22 20.52 10.62c.42.24.6.84.36 1.32-.24.48-.84.66-1.32.42z"/>
+                    </svg>
+                    <svg v-else-if="currentSearchEngineId === 1" class="w-5 h-5" viewBox="0 0 24 24" fill="#4285F4">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    <svg v-else-if="currentSearchEngineId === 2" class="w-5 h-5" viewBox="0 0 24 24" fill="#231916">
+                      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                    </svg>
+                    <svg v-else class="w-5 h-5" viewBox="0 0 24 24" fill="#F39C12">
+                      <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.52 17.34c-.24.36-.66.48-1.02.24-2.82-1.74-6.36-2.1-10.56-1.14-.42.12-.78-.18-.9-.54-.12-.42.18-.78.54-.9 4.56-1.02 8.52-.6 11.64 1.32.42.18.48.66.3 1.02zm1.44-3.3c-.3.42-.84.6-1.26.3-3.24-1.98-8.16-2.58-11.94-1.38-.48.12-1.02-.12-1.14-.6-.12-.48.12-1.02.6-1.14C9.6 9.9 15 10.56 18.72 12.84c.36.18.54.78.24 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.3c-.6.18-1.2-.18-1.38-.72-.18-.6.18-1.2.72-1.38C9.6 7.98 16.2 8.22 20.52 10.62c.42.24.6.84.36 1.32-.24.48-.84.66-1.32.42z"/>
+                    </svg>
+                  </div>
+                  <svg class="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
+                
+                <div 
+                  v-if="showSearchEngineDropdown"
+                  class="absolute left-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 z-50"
+                  @click.stop
+                >
+                  <div 
+                    v-for="(engine, index) in searchEngines" 
+                    :key="index"
+                    @click.stop="selectSearchEngine(engine.url, index)"
+                    class="flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer transition-colors"
+                  >
+                    <div class="w-5 h-5 flex items-center justify-center">
+                      <svg v-if="index === 0" class="w-4 h-4" viewBox="0 0 24 24" fill="#0066FF">
+                        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.52 17.34c-.24.36-.66.48-1.02.24-2.82-1.74-6.36-2.1-10.56-1.14-.42.12-.78-.18-.9-.54-.12-.42.18-.78.54-.9 4.56-1.02 8.52-.6 11.64 1.32.42.18.48.66.3 1.02zm1.44-3.3c-.3.42-.84.6-1.26.3-3.24-1.98-8.16-2.58-11.94-1.38-.48.12-1.02-.12-1.14-.6-.12-.48.12-1.02.6-1.14C9.6 9.9 15 10.56 18.72 12.84c.36.18.54.78.24 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.3c-.6.18-1.2-.18-1.38-.72-.18-.6.18-1.2.72-1.38C9.6 7.98 16.2 8.22 20.52 10.62c.42.24.6.84.36 1.32-.24.48-.84.66-1.32.42z"/>
+                      </svg>
+                      <svg v-else-if="index === 1" class="w-4 h-4" viewBox="0 0 24 24" fill="#4285F4">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                      </svg>
+                      <svg v-else-if="index === 2" class="w-4 h-4" viewBox="0 0 24 24" fill="#231916">
+                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                      </svg>
+                      <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="#F39C12">
+                        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.52 17.34c-.24.36-.66.48-1.02.24-2.82-1.74-6.36-2.1-10.56-1.14-.42.12-.78-.18-.9-.54-.12-.42.18-.78.54-.9 4.56-1.02 8.52-.6 11.64 1.32.42.18.48.66.3 1.02zm1.44-3.3c-.3.42-.84.6-1.26.3-3.24-1.98-8.16-2.58-11.94-1.38-.48.12-1.02-.12-1.14-.6-.12-.48.12-1.02.6-1.14C9.6 9.9 15 10.56 18.72 12.84c.36.18.54.78.24 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.3c-.6.18-1.2-.18-1.38-.72-.18-.6.18-1.2.72-1.38C9.6 7.98 16.2 8.22 20.52 10.62c.42.24.6.84.36 1.32-.24.48-.84.66-1.32.42z"/>
+                      </svg>
+                    </div>
+                    <span class="text-sm text-slate-700 dark:text-slate-300">{{ engine.name }}</span>
+                  </div>
+                </div>
+              </div>
             </div>
             <input
               v-model="searchQuery"
               @keyup.enter="doSearch"
               type="text"
               :placeholder="homeTexts.searchPlaceholder"
-              class="w-full px-14 py-4 text-lg rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl border border-white/30 dark:border-slate-700/50 focus:outline-none focus:ring-2 focus:ring-orange-400/50 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 shadow-lg"
+              class="w-full pl-20 pr-14 py-4 text-lg rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl border border-white/30 dark:border-slate-700/50 focus:outline-none focus:ring-2 focus:ring-orange-400/50 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 shadow-lg"
             />
             <button 
               @click="doSearch"
@@ -80,6 +150,8 @@
               </svg>
             </button>
           </div>
+          
+          <div class="fixed inset-0 z-40" v-if="showSearchEngineDropdown" @click="showSearchEngineDropdown = false"></div>
         </div>
       </div>
 
@@ -136,7 +208,7 @@
             <a
               v-for="item in getGroupItems(group.id)"
               :key="item.id"
-              :href="item.url"
+              :href="getItemUrl(item)"
               :target="item.openInNewTab ? '_blank' : '_self'"
               @click.prevent="openItem(item)"
               class="item-card flex items-start gap-3 p-3 rounded-2xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-white/20 dark:border-slate-700/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-200"
@@ -157,7 +229,7 @@
                   {{ item.name }}
                 </div>
                 <div class="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap truncate">
-                  {{ getDomain(item.url) }}
+                  {{ getDomain(getItemUrl(item)) }}
                 </div>
                 <div v-if="item.description" class="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap truncate mt-0.5">
                   {{ item.description }}
@@ -225,7 +297,93 @@ const searchQuery = ref('')
 const activeWindow = ref<Item | null>(null)
 const activeWindowModalOpen = ref(false)
 const selectedSearchEngine = ref('https://www.bing.com/search?q=')
+const currentSearchEngine = ref('https://www.bing.com/search?q=')
+const currentSearchEngineId = ref(0)
+const showSearchEngineDropdown = ref(false)
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1280)
+
+const searchEngines = [
+  { name: 'Bing', url: 'https://www.bing.com/search?q=' },
+  { name: 'Google', url: 'https://www.google.com/search?q=' },
+  { name: '百度', url: 'https://www.baidu.com/s?wd=' },
+  { name: '360搜索', url: 'https://www.so.com/s?q=' }
+]
+
+const isInternalMode = ref(false)
+
+const toggleInternalMode = () => {
+  isInternalMode.value = !isInternalMode.value
+  localStorage.setItem('isInternalMode', String(isInternalMode.value))
+}
+
+const getItemUrl = (item: Item): string => {
+  // 获取原始URL值
+  const rawUrl = item.url
+  
+  // 如果是字符串，尝试解析为JSON对象（后端存储的格式）
+  if (typeof rawUrl === 'string') {
+    try {
+      // 尝试解析JSON字符串
+      const parsed = JSON.parse(rawUrl)
+      if (parsed && typeof parsed === 'object') {
+        const urlObj = parsed as { external?: string; internal: string }
+        const externalUrl = urlObj.external
+        const internalUrl = urlObj.internal
+        
+        // 只有一个地址时返回那个地址
+        if (!internalUrl && externalUrl) {
+          return externalUrl
+        }
+        if (!externalUrl && internalUrl) {
+          return internalUrl
+        }
+        
+        // 两个都有，根据模式选择
+        if (isInternalMode.value) {
+          return internalUrl || externalUrl || ''
+        } else {
+          return externalUrl || internalUrl || ''
+        }
+      }
+    } catch {
+      // 不是JSON格式，直接返回原字符串
+      return rawUrl
+    }
+  }
+  
+  // 处理 object 类型的 URL（直接是对象）
+  if (rawUrl && typeof rawUrl === 'object') {
+    const urlObj = rawUrl as { external?: string; internal: string }
+    const externalUrl = urlObj.external
+    const internalUrl = urlObj.internal
+    
+    // 只有一个地址时返回那个地址
+    if (!internalUrl && externalUrl) {
+      return externalUrl
+    }
+    if (!externalUrl && internalUrl) {
+      return internalUrl
+    }
+    
+    // 两个都有，根据模式选择
+    if (isInternalMode.value) {
+      return internalUrl || externalUrl || ''
+    } else {
+      return externalUrl || internalUrl || ''
+    }
+  }
+  
+  // 兜底返回空字符串
+  return ''
+}
+
+const selectSearchEngine = (url: string, id: number) => {
+  currentSearchEngine.value = url
+  currentSearchEngineId.value = id
+  showSearchEngineDropdown.value = false
+  localStorage.setItem('searchEngine', url)
+  localStorage.setItem('searchEngineId', id.toString())
+}
 const currentTime = ref('')
 const currentDate = ref('')
 const adminModalOpen = ref(false)
@@ -243,6 +401,30 @@ const initializePage = async () => {
   isInitializing.value = true
   
   try {
+    // 加载搜索引擎设置
+    const savedSearchEngine = localStorage.getItem('searchEngine')
+    const savedSearchEngineId = localStorage.getItem('searchEngineId')
+    
+    if (savedSearchEngine) {
+      currentSearchEngine.value = savedSearchEngine
+    } else if (settingsStore.settings.searchEngine) {
+      currentSearchEngine.value = settingsStore.settings.searchEngine
+    }
+    
+    if (savedSearchEngineId) {
+      currentSearchEngineId.value = parseInt(savedSearchEngineId)
+    } else {
+      // 根据 URL 计算 ID
+      const engineIndex = searchEngines.findIndex(e => e.url === currentSearchEngine.value)
+      currentSearchEngineId.value = engineIndex >= 0 ? engineIndex : 0
+    }
+    
+    // 加载内外网模式设置
+    const savedInternalMode = localStorage.getItem('isInternalMode')
+    if (savedInternalMode) {
+      isInternalMode.value = savedInternalMode === 'true'
+    }
+    
     // 1. 首先加载个人设置（包含主题、壁纸、搜索栏等）
     console.log('[Home] 1. 加载个人设置...')
     await settingsStore.loadSettings()
@@ -502,10 +684,12 @@ const getItemColor = (name: string): string => {
 }
 
 const openItem = (item: Item) => {
-  const safeUrl = sanitizeUrl(item.url)
+  // 使用 getItemUrl 获取当前模式对应的正确URL
+  const itemUrl = getItemUrl(item)
+  const safeUrl = sanitizeUrl(itemUrl)
   
   if (containsXss(safeUrl)) {
-    console.warn('Potentially unsafe URL detected:', item.url)
+    console.warn('Potentially unsafe URL detected:', itemUrl)
     return
   }
   
@@ -529,7 +713,7 @@ const toggleTheme = () => {
 
 const doSearch = () => {
   if (searchQuery.value.trim()) {
-    window.open(selectedSearchEngine.value + encodeURIComponent(searchQuery.value), '_blank')
+    window.open(currentSearchEngine.value + encodeURIComponent(searchQuery.value), '_blank')
   }
 }
 

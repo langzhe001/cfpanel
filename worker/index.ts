@@ -934,10 +934,15 @@ interface Group {
   updated_at: string
 }
 
+interface ItemUrl {
+  external: string
+  internal: string
+}
+
 interface Item {
   id?: number
   name: string
-  url: string
+  url: string | ItemUrl
   icon?: string
   description?: string
   group_id: number
@@ -1080,7 +1085,7 @@ const d1Items = {
 
   create: async (env: Env, data: {
     name: string
-    url: string
+    url: string | { external?: string; internal: string }
     icon?: string
     description?: string
     groupId: number
@@ -1092,13 +1097,16 @@ const d1Items = {
     color?: string
   }, userId: number = 1): Promise<Item> => {
     const now = new Date().toISOString()
+    
+    const urlValue = typeof data.url === 'object' ? JSON.stringify(data.url) : data.url
+    
     const result = await env.SUNPANEL_DB.prepare(`
       INSERT INTO items (name, url, icon, description, group_id, user_id, order_index,
                         open_in_new_tab, show_as_window, window_width, window_height, color, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       data.name,
-      data.url,
+      urlValue,
       data.icon || null,
       data.description || null,
       data.groupId,
@@ -1119,7 +1127,7 @@ const d1Items = {
 
   update: async (env: Env, id: number, data: {
     name?: string
-    url?: string
+    url?: string | { external?: string; internal: string }
     icon?: string
     description?: string
     groupId?: number
@@ -1134,6 +1142,11 @@ const d1Items = {
     if (!existing) return null
 
     const now = new Date().toISOString()
+    
+    const urlValue = data.url !== undefined 
+      ? (typeof data.url === 'object' ? JSON.stringify(data.url) : data.url)
+      : existing.url
+    
     await env.SUNPANEL_DB.prepare(`
       UPDATE items SET name = ?, url = ?, icon = ?, description = ?, group_id = ?,
                       order_index = ?, open_in_new_tab = ?, show_as_window = ?,
@@ -1141,7 +1154,7 @@ const d1Items = {
       WHERE id = ?
     `).bind(
       data.name ?? existing.name,
-      data.url ?? existing.url,
+      urlValue,
       data.icon ?? existing.icon,
       data.description ?? existing.description,
       data.groupId ?? existing.group_id,
@@ -1867,7 +1880,13 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         
         const CreateItemSchema = z.object({
           name: z.string().min(1).max(100),
-          url: z.string().url().max(500),
+          url: z.union([
+            z.string().max(500),
+            z.object({
+              external: z.string().max(500).optional(),
+              internal: z.string().max(500)
+            })
+          ]),
           icon: z.string().max(255).optional().nullable(),
           description: z.string().max(500).optional().nullable(),
           groupId: z.union([z.string(), z.number()]),
@@ -1934,7 +1953,13 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         
         const UpdateItemSchema = z.object({
           name: z.string().min(1).max(100).optional().nullable(),
-          url: z.string().url().max(500).optional().nullable(),
+          url: z.union([
+            z.string().max(500).optional().nullable(),
+            z.object({
+              external: z.string().max(500).optional(),
+              internal: z.string().max(500)
+            }).optional()
+          ]),
           icon: z.string().max(255).optional().nullable(),
           description: z.string().max(500).optional().nullable(),
           groupId: z.union([z.string(), z.number()]).optional().nullable(),
