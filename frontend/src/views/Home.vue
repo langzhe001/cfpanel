@@ -77,7 +77,7 @@
               <div class="relative search-engine-selector">
                 <button 
                   @click="showSearchEngineDropdown = !showSearchEngineDropdown"
-                  class="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-white/50 dark:hover:bg-slate-700/50 transition-colors"
+                  class="flex items-center gap-2 px-3 py-2 min-w-[56px] justify-center rounded-full hover:bg-white/50 dark:hover:bg-slate-700/50 transition-colors"
                 >
                   <div class="w-6 h-6 flex items-center justify-center">
                     <svg v-if="currentSearchEngineId === 0" class="w-5 h-5" viewBox="0 0 24 24" fill="#0066FF">
@@ -109,7 +109,7 @@
                   <div 
                     v-for="(engine, index) in searchEngines" 
                     :key="index"
-                    @click.stop="selectSearchEngine(engine.url, index)"
+                    @click.stop="console.log('点击搜索引擎:', engine.url, index) || selectSearchEngine(engine.url, index)"
                     class="flex items-center gap-3 px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer transition-colors"
                   >
                     <div class="w-5 h-5 flex items-center justify-center">
@@ -139,7 +139,7 @@
               @keyup.enter="doSearch"
               type="text"
               :placeholder="homeTexts.searchPlaceholder"
-              class="w-full pl-20 pr-14 py-4 text-lg rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl border border-white/30 dark:border-slate-700/50 focus:outline-none focus:ring-2 focus:ring-orange-400/50 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 shadow-lg"
+              class="w-full pl-20 pr-14 py-4 text-lg rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl border border-white/30 dark:border-slate-700/50 focus:outline-none focus:ring-2 focus:ring-slate-300/60 dark:focus:ring-slate-600/60 focus:border-slate-400/60 dark:focus:border-slate-500/60 transition-all duration-300 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 shadow-card"
             />
             <button 
               @click="doSearch"
@@ -211,7 +211,7 @@
               :href="getItemUrl(item)"
               :target="item.openInNewTab ? '_blank' : '_self'"
               @click.prevent="openItem(item)"
-              class="item-card flex items-start gap-3 p-3 rounded-2xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-white/20 dark:border-slate-700/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-200"
+              class="item-card flex items-start gap-3 p-3 rounded-2xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-white/20 dark:border-slate-700/50 hover:shadow-card-hover hover:-translate-y-2 hover:shadow-glow-sm transition-all duration-300"
             >
               <div 
                 class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl flex-shrink-0"
@@ -378,11 +378,13 @@ const getItemUrl = (item: Item): string => {
 }
 
 const selectSearchEngine = (url: string, id: number) => {
+  console.log('[Home] 选择搜索引擎:', { url, id })
   currentSearchEngine.value = url
   currentSearchEngineId.value = id
   showSearchEngineDropdown.value = false
   localStorage.setItem('searchEngine', url)
   localStorage.setItem('searchEngineId', id.toString())
+  console.log('[Home] 当前搜索引擎已更新:', currentSearchEngine.value, currentSearchEngineId.value)
 }
 const currentTime = ref('')
 const currentDate = ref('')
@@ -429,6 +431,14 @@ const initializePage = async () => {
     console.log('[Home] 1. 加载个人设置...')
     await settingsStore.loadSettings()
     console.log('[Home] 个人设置加载完成:', settingsStore.settings)
+    
+    // 从 settingsStore 更新搜索引擎设置（优先使用数据库值）
+    if (settingsStore.settings.searchEngine) {
+      currentSearchEngine.value = settingsStore.settings.searchEngine
+      const engineIndex = searchEngines.findIndex(e => e.url === currentSearchEngine.value)
+      currentSearchEngineId.value = engineIndex >= 0 ? engineIndex : 0
+      console.log('[Home] 从 settingsStore 更新搜索引擎:', currentSearchEngine.value, currentSearchEngineId.value)
+    }
     
     // 2. 加载全局设置（包含网站标题、描述、页脚等）
     console.log('[Home] 2. 加载全局设置...')
@@ -809,6 +819,16 @@ onMounted(async () => {
   const handleSettingsChanged = async (data: any) => {
     console.log('[Home] 收到设置变更通知:', data)
     await settingsStore.loadSettings(true)
+    
+    // 更新搜索引擎设置
+    if (settingsStore.settings.searchEngine) {
+      currentSearchEngine.value = settingsStore.settings.searchEngine
+      const engineIndex = searchEngines.findIndex(e => e.url === currentSearchEngine.value)
+      currentSearchEngineId.value = engineIndex >= 0 ? engineIndex : 0
+      localStorage.setItem('searchEngine', currentSearchEngine.value)
+      localStorage.setItem('searchEngineId', currentSearchEngineId.value.toString())
+      console.log('[Home] SSE 更新搜索引擎:', currentSearchEngine.value, currentSearchEngineId.value)
+    }
     
     // 如果语言发生变化，切换全局设置的语言
     const newLanguage = settingsStore.settings.language

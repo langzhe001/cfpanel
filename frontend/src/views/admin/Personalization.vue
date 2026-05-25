@@ -88,7 +88,7 @@
               <input
                 type="text"
                 v-model="formData.wallpaper"
-                class="flex-1 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
+                class="flex-1 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-400 outline-none"
                 placeholder="#1e293b"
               />
             </div>
@@ -118,7 +118,7 @@
                 v-model="formData.wallpaper"
                 type="text"
                 :placeholder="t('admin.personalization.orEnterURL')"
-                class="flex-1 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
+                class="flex-1 px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-400 outline-none"
               />
             </div>
           </div>
@@ -209,7 +209,7 @@
               v-model="formData.customCSS"
               rows="6"
               placeholder="/* 在此处添加自定义样式 */"
-              class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-orange-500 outline-none"
+              class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-slate-400 outline-none"
             />
             <p class="text-xs text-slate-500 mt-2">注意：{{ t('admin.personalization.customCSS') }} 会经过安全过滤以防止注入攻击。</p>
           </div>

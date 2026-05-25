@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS rate_limits (
+    ip TEXT PRIMARY KEY,
+    count INTEGER DEFAULT 1,
+    timestamp INTEGER NOT NULL
+);

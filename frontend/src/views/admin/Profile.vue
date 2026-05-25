@@ -45,7 +45,7 @@
             <input
               v-model="form.nickname"
               type="text"
-              class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
+              class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-400 outline-none"
               :placeholder="profileTexts.nicknamePlaceholder || '请输入昵称'"
             />
           </div>
@@ -56,7 +56,7 @@
           <input
             v-model="form.email"
             type="email"
-            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
+            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-400 outline-none"
             :placeholder="profileTexts.emailPlaceholder || '请输入邮箱'"
           />
         </div>
@@ -65,7 +65,7 @@
           <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ profileTexts.language || '语言' }}</label>
           <select
             v-model="form.language"
-            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none appearance-none cursor-pointer bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%236B7280%22%20d%3D%22M10.293%203.293L6%207.586%201.707%203.293A1%201%200%2000.293%204.707l5%205a1%201%200%20001.414%200l5-5a1%201%200%2010-1.414-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.75rem_center]"
+            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-400 outline-none appearance-none cursor-pointer bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%236B7280%22%20d%3D%22M10.293%203.293L6%207.586%201.707%203.293A1%201%200%2000.293%204.707l5%205a1%201%200%20001.414%200l5-5a1%201%200%2010-1.414-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.75rem_center]"
           >
             <option value="zh-CN">简体中文</option>
             <option value="en-US">English</option>
@@ -78,7 +78,7 @@
           <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ profileTexts.searchEngine || '搜索引擎' }}</label>
           <select
             v-model="form.searchEngine"
-            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none appearance-none cursor-pointer bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%236B7280%22%20d%3D%22M10.293%203.293L6%207.586%201.707%203.293A1%201%200%2000.293%204.707l5%205a1%201%200%20001.414%200l5-5a1%201%200%2010-1.414-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.75rem_center]"
+            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-400 outline-none appearance-none cursor-pointer bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%236B7280%22%20d%3D%22M10.293%203.293L6%207.586%201.707%203.293A1%201%200%2000.293%204.707l5%205a1%201%200%20001.414%200l5-5a1%201%200%2010-1.414-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.75rem_center]"
           >
             <option value="https://www.bing.com/search?q=">Bing</option>
             <option value="https://www.google.com/search?q=">Google</option>
@@ -123,7 +123,7 @@
           <input
             v-model="passwordForm.oldPassword"
             type="password"
-            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
+            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-400 outline-none"
             :placeholder="profileTexts.currentPasswordPlaceholder || '请输入当前密码'"
           />
         </div>
@@ -132,7 +132,7 @@
           <input
             v-model="passwordForm.newPassword"
             type="password"
-            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
+            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-400 outline-none"
             :placeholder="profileTexts.newPasswordPlaceholder || '请输入新密码'"
           />
         </div>
@@ -141,7 +141,7 @@
           <input
             v-model="passwordForm.confirmPassword"
             type="password"
-            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500 outline-none"
+            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-400 outline-none"
             :placeholder="('请再次输入' + (profileTexts.newPassword || '新密码'))"
           />
         </div>
@@ -167,10 +167,12 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useGlobalSettingsStore } from '@/stores/globalSettings'
+import { useSettingsStore } from '@/stores/settings'
 import { usePageTexts } from '@/composables/useI18n'
+import { useSSE } from '@/composables/useSSE'
 import { userApi } from '@/api'
 import ErrorMessage from '@/components/ErrorMessage.vue'
 import { sanitizeNickname, validateEmail, containsXss } from '@/utils/security'
@@ -191,6 +193,7 @@ const clearMessages = () => {
 
 const authStore = useAuthStore()
 const globalSettingsStore = useGlobalSettingsStore()
+const settingsStore = useSettingsStore()
 const { profile: profileTexts, t } = usePageTexts()
 
 const error = ref('')
@@ -257,10 +260,13 @@ const handleSubmit = async () => {
       }
     }
     
-    // 保存搜索引擎设置
-    if (form.searchEngine !== originalForm.searchEngine) {
-      await userApi.updateSettings({ searchEngine: form.searchEngine })
-    }
+    // 保存搜索引擎设置（总是发送，不管是否变化）
+    console.log('[Profile] 保存搜索引擎:', form.searchEngine)
+    // 直接通过 settingsStore 更新设置，这样会触发 SSE 通知
+    await settingsStore.updateSettings({ searchEngine: form.searchEngine })
+    console.log('[Profile] 搜索引擎保存成功')
+    // 重新加载设置以获取最新数据
+    await loadSettings()
     
     Object.assign(originalForm, form)
     showSuccessMessage('保存成功')
@@ -334,13 +340,26 @@ const handleAvatarUpload = async (e: Event) => {
 
 const loadSettings = async () => {
   try {
-    const settings = await userApi.getSettings()
-    if (settings.data) {
-      form.searchEngine = settings.data.searchEngine || 'https://www.bing.com/search?q='
-    }
+    // 强制从API加载最新设置
+    await settingsStore.loadSettings(true)
+    // 从 settingsStore 获取设置
+    form.searchEngine = settingsStore.settings.searchEngine || 'https://www.bing.com/search?q='
+    console.log('[Profile] 加载搜索引擎设置:', form.searchEngine)
   } catch (err) {
     console.warn('加载设置失败:', err)
   }
+}
+
+const { on: onSSEEvent } = useSSE()
+
+let settingsChangedUnsubscribe: (() => void) | null = null
+
+const handleSettingsChanged = async (data: any) => {
+  console.log('[Profile] 收到设置变更通知:', data)
+  // 重新加载设置
+  await loadSettings()
+  // 更新 originalForm
+  Object.assign(originalForm, form)
 }
 
 onMounted(async () => {
@@ -357,5 +376,13 @@ onMounted(async () => {
   await loadSettings()
   // 设置加载后，更新 originalForm 以包含搜索引擎
   Object.assign(originalForm, form)
+  // 监听 SSE 事件
+  settingsChangedUnsubscribe = onSSEEvent('settingsChanged', handleSettingsChanged)
+})
+
+onUnmounted(() => {
+  if (settingsChangedUnsubscribe) {
+    settingsChangedUnsubscribe()
+  }
 })
 </script>

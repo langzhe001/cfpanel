@@ -16,7 +16,7 @@
 
     <template v-else>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-card border border-slate-200 dark:border-slate-700">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm text-slate-500">{{ t('dashboard.groupCount') }}</p>
@@ -28,7 +28,7 @@
           </div>
         </div>
 
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-card border border-slate-200 dark:border-slate-700">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm text-slate-500">{{ t('dashboard.websiteCount') }}</p>
@@ -40,7 +40,7 @@
           </div>
         </div>
 
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-card border border-slate-200 dark:border-slate-700">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm text-slate-500">{{ t('dashboard.imageCount') }}</p>
@@ -60,7 +60,7 @@
           </div>
         </div>
 
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-card border border-slate-200 dark:border-slate-700">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm text-slate-500">{{ t('dashboard.userCount') }}</p>
@@ -88,7 +88,7 @@
             v-for="action in quickActions" 
             :key="action.path"
             @click="$router.push(action.path)"
-            class="flex flex-col items-center gap-2 p-4 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            class="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-all duration-300 hover:shadow-sm"
           >
             <div class="w-10 h-10 rounded-lg flex items-center justify-center" :class="action.bgClass">
               <Icon :icon="action.icon" class="w-5 h-5" :class="action.iconClass" />
@@ -99,7 +99,7 @@
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-card border border-slate-200 dark:border-slate-700">
           <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{{ t('dashboard.recentWebsites') }}</h3>
           <div class="space-y-3">
             <div 
@@ -125,7 +125,7 @@
           </div>
         </div>
 
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-card border border-slate-200 dark:border-slate-700">
           <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{{ t('dashboard.recentGroups') }}</h3>
           <div class="space-y-3">
             <div 

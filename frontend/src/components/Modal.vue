@@ -7,7 +7,7 @@
         @click.self="handleClose"
       >
         <div 
-          class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col w-full"
+          class="bg-white dark:bg-slate-800 rounded-2xl shadow-card overflow-hidden flex flex-col w-full"
           :class="modalSize"
           @click.stop
         >
@@ -110,7 +110,7 @@ onUnmounted(() => {
 <style scoped>
 .modal-fade-enter-active,
 .modal-fade-leave-active {
-  transition: opacity 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .modal-fade-enter-from,
@@ -120,12 +120,12 @@ onUnmounted(() => {
 
 .modal-fade-enter-active > div,
 .modal-fade-leave-active > div {
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .modal-fade-enter-from > div,
 .modal-fade-leave-to > div {
-  transform: scale(0.95);
+  transform: scale(0.9) translateY(10px);
   opacity: 0;
 }
 </style>

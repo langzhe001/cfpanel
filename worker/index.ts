@@ -51,7 +51,7 @@ export class SSEManager {
 
   async handleSSE(request: Request) {
     const userId = parseInt(request.headers.get('X-User-Id') || '0')
-    console.log(`[SSE] SSE 连接请求 - 用户: ${userId}`)
+    //console.log(`[SSE] SSE 连接请求 - 用户: ${userId}`)
 
     const stream = new ReadableStream({
       start: (controller) => {
@@ -76,7 +76,7 @@ export class SSEManager {
         }
 
         this.clients.set(clientId, client)
-        console.log(`[SSE] 客户端已注册 - ID: ${clientId}, 用户: ${userId}, 总数: ${this.clients.size}`)
+        //console.log(`[SSE] 客户端已注册 - ID: ${clientId}, 用户: ${userId}, 总数: ${this.clients.size}`)
 
         sendMessage('connected', { message: 'SSE 连接已建立' })
 
@@ -88,7 +88,7 @@ export class SSEManager {
           controller.signal.addEventListener('abort', () => {
             this.clients.delete(clientId)
             clearInterval(interval)
-            console.log(`[SSE] 客户端断开 - ID: ${clientId}, 用户: ${userId}, 总数: ${this.clients.size}`)
+            //console.log(`[SSE] 客户端断开 - ID: ${clientId}, 用户: ${userId}, 总数: ${this.clients.size}`)
           })
         }
       },
@@ -114,8 +114,8 @@ export class SSEManager {
     const body = await request.json()
     const { userId, event, data } = body
 
-    console.log(`[SSE] 广播请求 - 用户: ${userId}, 事件: ${event}, 数据: ${JSON.stringify(data).substring(0, 100)}`)
-    console.log(`[SSE] 当前客户端数量: ${this.clients.size}`)
+    //console.log(`[SSE] 广播请求 - 用户: ${userId}, 事件: ${event}, 数据: ${JSON.stringify(data).substring(0, 100)}`)
+    //console.log(`[SSE] 当前客户端数量: ${this.clients.size}`)
 
     let sentCount = 0
     this.clients.forEach((client, clientId) => {
@@ -123,16 +123,16 @@ export class SSEManager {
         try {
           client.send(event, data)
           sentCount++
-          console.log(`[SSE] 消息发送成功 - 客户端ID: ${clientId}`)
+          //console.log(`[SSE] 消息发送成功 - 客户端ID: ${clientId}`)
         } catch (error: any) {
-          console.log(`[SSE] 消息发送失败 - 客户端ID: ${clientId}, 错误: ${error.message}`)
+          //console.log(`[SSE] 消息发送失败 - 客户端ID: ${clientId}, 错误: ${error.message}`)
           client.close()
           this.clients.delete(clientId)
         }
       }
     })
 
-    console.log(`[SSE] 广播完成 - 已发送到 ${sentCount} 个客户端`)
+    //console.log(`[SSE] 广播完成 - 已发送到 ${sentCount} 个客户端`)
 
     return new Response(JSON.stringify({ success: true, sentCount }), {
       headers: { 'Content-Type': 'application/json' }
@@ -145,8 +145,8 @@ export class SSEManager {
     const body = await request.json()
     const { userId, message } = body
 
-    console.log(`[SSE] 广播消息请求 - 用户: ${userId}`)
-    console.log(`[SSE] 当前客户端数量: ${this.clients.size}`)
+    //console.log(`[SSE] 广播消息请求 - 用户: ${userId}`)
+    //console.log(`[SSE] 当前客户端数量: ${this.clients.size}`)
 
     let sentCount = 0
     this.clients.forEach((client, clientId) => {
@@ -155,16 +155,16 @@ export class SSEManager {
           const parsedMessage = JSON.parse(message)
           client.send('message', parsedMessage)
           sentCount++
-          console.log(`[SSE] 消息发送成功 - 客户端ID: ${clientId}`)
+          //console.log(`[SSE] 消息发送成功 - 客户端ID: ${clientId}`)
         } catch (error: any) {
-          console.log(`[SSE] 消息发送失败 - 客户端ID: ${clientId}, 错误: ${error.message}`)
+          //console.log(`[SSE] 消息发送失败 - 客户端ID: ${clientId}, 错误: ${error.message}`)
           client.close()
           this.clients.delete(clientId)
         }
       }
     })
 
-    console.log(`[SSE] 广播完成 - 已发送到 ${sentCount} 个客户端`)
+    //console.log(`[SSE] 广播完成 - 已发送到 ${sentCount} 个客户端`)
 
     return new Response(JSON.stringify({ success: true, sentCount }), {
       headers: { 'Content-Type': 'application/json' }
@@ -182,7 +182,7 @@ const broadcastToUser = async (userId: number, event: string, data: any, env: En
     const id = env.SSE_MANAGER.idFromName('sse-manager')
     const stub = env.SSE_MANAGER.get(id)
 
-    console.log(`[SSE] 准备广播消息 - 用户: ${userId}, 事件: ${event}`)
+    //console.log(`[SSE] 准备广播消息 - 用户: ${userId}, 事件: ${event}`)
 
     const response = await stub.fetch(new Request('http://localhost/broadcast', {
       method: 'POST',
@@ -191,24 +191,29 @@ const broadcastToUser = async (userId: number, event: string, data: any, env: En
     }))
 
     const result = await response.json()
-    console.log(`[SSE] 广播结果: ${JSON.stringify(result)}`)
+    //console.log(`[SSE] 广播结果: ${JSON.stringify(result)}`)
   } catch (error: any) {
-    console.log(`[SSE] 广播失败: ${error.message}`)
+    //console.log(`[SSE] 广播失败: ${error.message}`)
   }
 }
 
-const toCamelCase = (str: string): string => {
+const toCamelCase = (str: string | undefined | null): string => {
+  if (!str) return ''
   return str.replace(/_([a-z])/g, (match, letter) => letter.toUpperCase())
 }
 
 const broadcastToUserOld = async (userId: number, eventType: string, data: any, env: Env) => {
+  console.log('[SSE] broadcastToUserOld 被调用 - 用户:', userId, '事件:', eventType)
+  console.log('[SSE] IMAGES_KV 是否存在:', !!env.IMAGES_KV)
+  
   if (!env.IMAGES_KV) {
-    console.log('[SSE] IMAGES_KV 未配置')
+    console.log('[SSE] IMAGES_KV 未配置，跳过推送')
     return
   }
 
   try {
     const messageKey = `sse_messages_${userId}`
+    console.log('[SSE] 消息键:', messageKey)
     
     let eventName: string
     let eventData: any
@@ -227,36 +232,36 @@ const broadcastToUserOld = async (userId: number, eventType: string, data: any, 
       data: eventData
     }
 
-    console.log(`[SSE] 广播消息开始 - 用户: ${userId}, 事件: ${eventName}, 消息ID: ${newMessage.id}`)
+    //console.log(`[SSE] 广播消息开始 - 用户: ${userId}, 事件: ${eventName}, 消息ID: ${newMessage.id}`)
 
-    console.log(`[SSE] 步骤1: 读取现有消息 - 用户: ${userId}, 键: ${messageKey}`)
+    //console.log(`[SSE] 步骤1: 读取现有消息 - 用户: ${userId}, 键: ${messageKey}`)
     const existingJson = await env.IMAGES_KV.get(messageKey, 'text')
-    console.log(`[SSE] 步骤1完成 - 用户: ${userId}, 是否存在: ${!!existingJson}, 类型: ${typeof existingJson}, 长度: ${existingJson ? existingJson.length : 0}`)
+    //console.log(`[SSE] 步骤1完成 - 用户: ${userId}, 是否存在: ${!!existingJson}, 类型: ${typeof existingJson}, 长度: ${existingJson ? existingJson.length : 0}`)
     
-    console.log(`[SSE] 步骤2: 解析消息数组`)
+    //console.log(`[SSE] 步骤2: 解析消息数组`)
     const messages = existingJson ? JSON.parse(existingJson) : []
     messages.push(newMessage)
-    console.log(`[SSE] 步骤2完成 - 用户: ${userId}, 消息总数: ${messages.length}`)
+    //console.log(`[SSE] 步骤2完成 - 用户: ${userId}, 消息总数: ${messages.length}`)
 
-    console.log(`[SSE] 步骤3: 序列化消息`)
+    //console.log(`[SSE] 步骤3: 序列化消息`)
     const messagesJson = JSON.stringify(messages)
-    console.log(`[SSE] 步骤3完成 - 用户: ${userId}, 序列化长度: ${messagesJson.length}`)
+    //console.log(`[SSE] 步骤3完成 - 用户: ${userId}, 序列化长度: ${messagesJson.length}`)
     
-    console.log(`[SSE] 步骤4: 存储到KV - 用户: ${userId}`)
+    //console.log(`[SSE] 步骤4: 存储到KV - 用户: ${userId}`)
     await env.IMAGES_KV.put(messageKey, messagesJson)
-    console.log(`[SSE] 步骤4完成 - 用户: ${userId}`)
+    //console.log(`[SSE] 步骤4完成 - 用户: ${userId}`)
     
-    console.log(`[SSE] 步骤5: 验证存储 - 用户: ${userId}`)
+    //console.log(`[SSE] 步骤5: 验证存储 - 用户: ${userId}`)
     const verifyJson = await env.IMAGES_KV.get(messageKey)
-    console.log(`[SSE] 步骤5完成 - 用户: ${userId}, 验证结果: ${verifyJson ? '成功' : '失败'}, 长度: ${verifyJson ? verifyJson.length : 0}`)
+    //console.log(`[SSE] 步骤5完成 - 用户: ${userId}, 验证结果: ${verifyJson ? '成功' : '失败'}, 长度: ${verifyJson ? verifyJson.length : 0}`)
     
     if (verifyJson) {
       const verifyMessages = JSON.parse(verifyJson)
-      console.log(`[SSE] 验证解析 - 用户: ${userId}, 消息数: ${verifyMessages.length}, 最后消息ID: ${verifyMessages[verifyMessages.length - 1]?.id}`)
+      //console.log(`[SSE] 验证解析 - 用户: ${userId}, 消息数: ${verifyMessages.length}, 最后消息ID: ${verifyMessages[verifyMessages.length - 1]?.id}`)
     }
   } catch (error: any) {
-    console.log(`[SSE] 广播失败: ${error.message}`)
-    console.log(`[SSE] 错误堆栈: ${error.stack}`)
+    //console.log(`[SSE] 广播失败: ${error.message}`)
+    //console.log(`[SSE] 错误堆栈: ${error.stack}`)
   }
 }
 
@@ -1179,42 +1184,32 @@ const d1Items = {
 
 const d1Settings = {
   get: async (env: Env, userId: number = 1): Promise<Settings> => {
-    // console.log(`[d1Settings.get] 用户ID: ${userId}`)
-    const result = await env.SUNPANEL_DB.prepare(`
-      SELECT theme, language, wallpaper, wallpaper_type, show_search_bar, search_engine,
-             items_per_row, mobile_items_per_row, tablet_items_per_row, desktop_items_per_row,
-             show_group_names, custom_css, custom_js, created_at
-      FROM settings WHERE user_id = ?
-    `).bind(userId).first()
-    // console.log(`[d1Settings.get] 查询结果: ${result ? '存在' : '不存在'}`)
+    console.log(`[d1Settings.get] [${new Date().toISOString()}] 开始获取用户设置 - 用户ID: ${userId}`)
+    let result
+    try {
+      result = await env.SUNPANEL_DB.prepare(`
+        SELECT theme, language, wallpaper, wallpaper_type, show_search_bar, search_engine,
+               items_per_row, mobile_items_per_row, tablet_items_per_row, desktop_items_per_row,
+               show_group_names, custom_css, custom_js, created_at
+        FROM users WHERE id = ?
+      `).bind(userId).first()
+      console.log(`[d1Settings.get] [${new Date().toISOString()}] 查询成功: ${result ? '有数据' : '无数据'}`)
+    } catch (e: any) {
+      console.log(`[d1Settings.get] [${new Date().toISOString()}] 第一次查询失败: ${e.message}，尝试降级查询`)
+      try {
+        result = await env.SUNPANEL_DB.prepare(`
+          SELECT theme, language, wallpaper, wallpaper_type, show_search_bar, search_engine,
+                 items_per_row, show_group_names, custom_css, custom_js, created_at
+          FROM users WHERE id = ?
+        `).bind(userId).first()
+        console.log(`[d1Settings.get] [${new Date().toISOString()}] 降级查询成功: ${result ? '有数据' : '无数据'}`)
+      } catch (e2: any) {
+        console.log(`[d1Settings.get] [${new Date().toISOString()}] 降级查询也失败: ${e2.message}`)
+      }
+    }
 
     if (!result) {
-      const now = new Date().toISOString()
-      await env.SUNPANEL_DB.prepare(`
-        INSERT INTO settings (user_id, theme, language, wallpaper, wallpaper_type,
-                             show_search_bar, search_engine, items_per_row,
-                             mobile_items_per_row, tablet_items_per_row, desktop_items_per_row,
-                             show_group_names, custom_css, custom_js, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        userId,
-        'light',
-        'zh-CN',
-        '#1e293b',
-        'color',
-        1,
-        'https://www.bing.com/search?q=',
-        6,
-        2,
-        3,
-        6,
-        1,
-        '',
-        '',
-        now,
-        now
-      ).run()
-
+      console.log('[d1Settings.get] [${new Date().toISOString()}] 返回默认设置')
       return {
         theme: 'light',
         language: 'zh-CN',
@@ -1229,29 +1224,31 @@ const d1Settings = {
         showGroupNames: 1,
         customCSS: '',
         customJS: '',
-        createdAt: now
+        createdAt: new Date().toISOString()
       }
     }
 
+    console.log(`[d1Settings.get] [${new Date().toISOString()}] 返回用户设置`)
     return {
-      theme: result.theme as string,
-      language: result.language as string,
-      wallpaper: result.wallpaper as string,
-      wallpaperType: result.wallpaper_type as string,
-      showSearchBar: result.show_search_bar as number,
-      searchEngine: result.search_engine as string,
-      itemsPerRow: result.items_per_row as number,
+      theme: (result as any).theme as string || 'light',
+      language: (result as any).language as string || 'zh-CN',
+      wallpaper: (result as any).wallpaper as string || '#1e293b',
+      wallpaperType: (result as any).wallpaper_type as string || 'color',
+      showSearchBar: (result as any).show_search_bar as number || 1,
+      searchEngine: (result as any).search_engine as string || 'https://www.bing.com/search?q=',
+      itemsPerRow: (result as any).items_per_row as number || 6,
       mobileItemsPerRow: (result as any).mobile_items_per_row as number || 2,
       tabletItemsPerRow: (result as any).tablet_items_per_row as number || 3,
       desktopItemsPerRow: (result as any).desktop_items_per_row as number || 6,
-      showGroupNames: result.show_group_names as number,
-      customCSS: result.custom_css as string,
-      customJS: result.custom_js as string,
+      showGroupNames: (result as any).show_group_names as number || 1,
+      customCSS: (result as any).custom_css as string || '',
+      customJS: (result as any).custom_js as string || '',
       createdAt: result.created_at as string
     }
   },
 
   update: async (env: Env, data: Partial<Settings>, userId: number = 1): Promise<Settings> => {
+    console.log(`[d1Settings.update] 开始更新用户设置 - 用户ID: ${userId}, 数据: ${JSON.stringify(data)}`)
     const existing = await d1Settings.get(env, userId)
     const now = new Date().toISOString()
 
@@ -1268,35 +1265,81 @@ const d1Settings = {
       desktopItemsPerRow: data.desktopItemsPerRow ?? existing.desktopItemsPerRow,
       showGroupNames: data.showGroupNames ?? existing.showGroupNames,
       customCSS: data.customCSS ?? existing.customCSS,
-      customJS: '',
+      customJS: data.customJS ?? existing.customJS,
       createdAt: existing.createdAt || now
     }
 
-    await env.SUNPANEL_DB.prepare(`
-      UPDATE settings SET 
-        theme = ?, language = ?, wallpaper = ?, wallpaper_type = ?,
-        show_search_bar = ?, search_engine = ?, items_per_row = ?,
-        mobile_items_per_row = ?, tablet_items_per_row = ?, desktop_items_per_row = ?,
-        show_group_names = ?, custom_css = ?, custom_js = ?, updated_at = ?
-      WHERE user_id = ?
-    `).bind(
-      merged.theme,
-      merged.language,
-      merged.wallpaper,
-      merged.wallpaperType,
-      merged.showSearchBar,
-      merged.searchEngine,
-      merged.itemsPerRow,
-      merged.mobileItemsPerRow,
-      merged.tabletItemsPerRow,
-      merged.desktopItemsPerRow,
-      merged.showGroupNames,
-      merged.customCSS,
-      merged.customJS,
-      now,
-      userId
-    ).run()
+    const updates: string[] = []
+    const values: any[] = []
 
+    if ('searchEngine' in data) {
+      updates.push('search_engine = ?')
+      values.push(merged.searchEngine)
+    }
+    if ('theme' in data) {
+      updates.push('theme = ?')
+      values.push(merged.theme)
+    }
+    if ('language' in data) {
+      updates.push('language = ?')
+      values.push(merged.language)
+    }
+    if ('wallpaper' in data) {
+      updates.push('wallpaper = ?')
+      values.push(merged.wallpaper)
+    }
+    if ('wallpaperType' in data) {
+      updates.push('wallpaper_type = ?')
+      values.push(merged.wallpaperType)
+    }
+    if ('showSearchBar' in data) {
+      updates.push('show_search_bar = ?')
+      values.push(merged.showSearchBar)
+    }
+    if ('itemsPerRow' in data) {
+      updates.push('items_per_row = ?')
+      values.push(merged.itemsPerRow)
+    }
+    if ('mobileItemsPerRow' in data) {
+      updates.push('mobile_items_per_row = ?')
+      values.push(merged.mobileItemsPerRow)
+    }
+    if ('tabletItemsPerRow' in data) {
+      updates.push('tablet_items_per_row = ?')
+      values.push(merged.tabletItemsPerRow)
+    }
+    if ('desktopItemsPerRow' in data) {
+      updates.push('desktop_items_per_row = ?')
+      values.push(merged.desktopItemsPerRow)
+    }
+    if ('showGroupNames' in data) {
+      updates.push('show_group_names = ?')
+      values.push(merged.showGroupNames)
+    }
+    if ('customCSS' in data) {
+      updates.push('custom_css = ?')
+      values.push(merged.customCSS)
+    }
+    if ('customJS' in data) {
+      updates.push('custom_js = ?')
+      values.push(merged.customJS)
+    }
+
+    if (updates.length > 0) {
+      updates.push('updated_at = ?')
+      values.push(now)
+      values.push(userId)
+
+      const sql = `UPDATE users SET ${updates.join(', ')} WHERE id = ?`
+      console.log(`[d1Settings.update] 执行 SQL: ${sql}`)
+      console.log(`[d1Settings.update] 参数: ${JSON.stringify(values)}`)
+      await env.SUNPANEL_DB.prepare(sql).bind(...values).run()
+      console.log('[d1Settings.update] SQL 执行成功')
+    } else {
+      console.log('[d1Settings.update] 没有需要更新的字段')
+    }
+
+    console.log('[d1Settings.update] 更新完成')
     return merged
   }
 }
@@ -1314,7 +1357,16 @@ const d1GlobalSettings = {
         FROM global_settings WHERE language = 'zh-CN'
       `).first()
 
-      if (!fallback) return null
+      if (!fallback) {
+        console.log('[d1GlobalSettings.get] 没有找到全局设置，尝试创建默认设置')
+        return d1GlobalSettings.create(env, {
+          language: 'zh-CN',
+          websiteTitle: 'SunPanel',
+          websiteDescription: '',
+          pageTexts: {},
+          footerText: ''
+        })
+      }
 
       return {
         id: fallback.id as number,
@@ -1410,7 +1462,7 @@ const d1GlobalSettings = {
   }): Promise<GlobalSettings> => {
     const now = new Date().toISOString()
 
-    await env.SUNPANEL_DB.prepare(`
+    const result = await env.SUNPANEL_DB.prepare(`
       INSERT INTO global_settings (language, website_title, website_description, page_texts, footer_text, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).bind(
@@ -1423,7 +1475,18 @@ const d1GlobalSettings = {
       now
     ).run()
 
-    return (await d1GlobalSettings.get(env, data.language))!
+    const newId = result.meta?.last_row_id || 0
+    
+    return {
+      id: newId,
+      language: data.language,
+      websiteTitle: data.websiteTitle,
+      websiteDescription: data.websiteDescription || '',
+      pageTexts: data.pageTexts || {},
+      footerText: data.footerText || '',
+      createdAt: now,
+      updatedAt: now
+    }
   }
 }
 
@@ -1451,6 +1514,50 @@ export default {
       return new Response(null, { headers: corsHeaders })
     }
 
+    if (path === '/users/settings' && method === 'PUT') {
+      const authResult = await authenticate(request, env, corsHeaders)
+      if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
+      
+      const session = authResult.session
+      if (!session || !session.user_id) {
+        return errorResponse('会话无效', 401, corsHeaders, requestId)
+      }
+
+      const csrfResult = await validateCsrf(request, env, corsHeaders, session, requestId)
+      if (!csrfResult.success) return csrfResult.response || errorResponse('CSRF验证失败', 403, corsHeaders, requestId)
+
+      const userId = session.user_id
+      let body
+      try {
+        body = await request.json()
+      } catch {
+        return errorResponse('请求体格式错误', 400, corsHeaders, requestId)
+      }
+
+      const searchEngine = body.searchEngine
+      if (!searchEngine) {
+        return errorResponse('缺少 searchEngine 参数', 400, corsHeaders, requestId)
+      }
+
+      await env.SUNPANEL_DB.prepare(`
+        UPDATE users SET search_engine = ?, updated_at = ? WHERE id = ?
+      `).bind(searchEngine, new Date().toISOString(), userId).run()
+
+      const result = await env.SUNPANEL_DB.prepare(`
+        SELECT search_engine FROM users WHERE id = ?
+      `).bind(userId).first()
+
+      await broadcastToUserOld(userId, 'settings_changed', {
+        searchEngine: result ? result.search_engine : searchEngine
+      }, env)
+
+      return jsonResponse({ 
+        success: true, 
+        data: { searchEngine: result ? result.search_engine : searchEngine },
+        message: '设置更新成功'
+      }, 200, corsHeaders, requestId)
+    }
+
     if (!url.pathname.startsWith('/api')) {
       if (url.pathname.startsWith('/gallery/images/') && method === 'GET') {
         const filename = url.pathname.substring('/gallery/images/'.length)
@@ -1471,7 +1578,7 @@ export default {
             const authResult = await authenticate(request, env, corsHeaders)
             if (!authResult.success) {
               // log(`未认证访问私有图片: ${filename}`, 'warn', requestId)
-              return authResult.response!
+              return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
             }
             if (imageInfo.user_id !== authResult.session!.user_id) {
               // log(`越权访问图片: ${filename}`, 'warn', requestId)
@@ -1597,11 +1704,10 @@ export default {
           // log(`尝试登录用户: ${username}`, 'info', requestId)
 
           const result = await env.SUNPANEL_DB.prepare(`
-            SELECT id, username, password, nickname, role FROM users WHERE username = ?
+            SELECT id, username, password, nickname, role, language FROM users WHERE username = ?
           `).bind(username).first()
 
           if (!result) {
-            // log(`用户不存在: ${username}`, 'warn', requestId)
             await auditLog(env, 'LOGIN_FAILED', {
               username: username,
               ip: clientIp,
@@ -1612,10 +1718,8 @@ export default {
             return errorResponse('用户名或密码错误', 401, corsHeaders, requestId)
           }
 
-          // log(`找到用户: ${result.username}, 验证密码...`, 'info', requestId)
           const isPasswordValid = await verifyPassword(password, result.password)
           if (!isPasswordValid) {
-            // log(`密码验证失败: ${username}`, 'warn', requestId)
             await auditLog(env, 'LOGIN_FAILED', {
               userId: Number(result.id),
               username: result.username,
@@ -1628,8 +1732,6 @@ export default {
           }
 
           const session = await d1Sessions.create(env, Number(result.id), result.username, result.role)
-
-          const settings = await d1Settings.get(env, Number(result.id))
 
           await auditLog(env, 'LOGIN', {
             userId: Number(result.id),
@@ -1663,7 +1765,7 @@ export default {
                 username: result.username,
                 nickname: result.nickname || '用户',
                 role: result.role,
-                language: settings.language || 'zh-CN'
+                language: (result as any).language || 'zh-CN'
               }
             },
             requestId
@@ -1679,7 +1781,7 @@ export default {
 
       if (path === '/auth/csrf-token' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfToken = await d1Sessions.updateCsrfToken(env, authResult.session!.id)
 
@@ -1688,7 +1790,7 @@ export default {
 
       if (path === '/auth/logout' && method === 'POST') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
         if (!csrfResult.success) return csrfResult.response!
@@ -1720,7 +1822,7 @@ export default {
 
       if (path === '/auth/me' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         return jsonResponse({
           id: authResult.session!.user_id.toString(),
@@ -1732,7 +1834,7 @@ export default {
 
       if (path === '/groups' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const groups = await d1Groups.getAll(env, authResult.session!.user_id)
 
@@ -1749,7 +1851,7 @@ export default {
 
       if (path === '/groups' && method === 'POST') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
         if (!csrfResult.success) return csrfResult.response!
@@ -1777,7 +1879,7 @@ export default {
           updatedAt: newGroup.updated_at
         }
 
-        console.log(`[SSE] 触发分组创建广播 - 用户ID: ${authResult.session!.user_id}`)
+        //console.log(`[SSE] 触发分组创建广播 - 用户ID: ${authResult.session!.user_id}`)
 await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'groupCreated', data: groupData }, env)
 
         return jsonResponse(groupData, 201, corsHeaders, requestId)
@@ -1785,7 +1887,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path.match(/^\/groups\/[^/]+$/) && method === 'PUT') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
         if (!csrfResult.success) return csrfResult.response!
@@ -1825,7 +1927,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path.match(/^\/groups\/[^/]+$/) && method === 'DELETE') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
         if (!csrfResult.success) return csrfResult.response!
@@ -1842,7 +1944,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/items' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const groupId = url.searchParams.get('groupId')
         const items = await d1Items.getAll(
@@ -1871,7 +1973,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/items' && method === 'POST') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
         if (!csrfResult.success) return csrfResult.response!
@@ -1941,7 +2043,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path.match(/^\/items\/[^/]+$/) && method === 'PUT') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
         if (!csrfResult.success) return csrfResult.response!
@@ -2016,7 +2118,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path.match(/^\/items\/[^/]+$/) && method === 'DELETE') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
         if (!csrfResult.success) return csrfResult.response!
@@ -2033,7 +2135,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/settings' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
         
         const settings = await d1Settings.get(env, authResult.session!.user_id)
 
@@ -2055,7 +2157,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/settings' && method === 'PUT') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
         if (!csrfResult.success) return csrfResult.response!
@@ -2109,7 +2211,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         let globalSettings = await d1GlobalSettings.get(env, language)
         
         if (!globalSettings) {
-          console.log(`[SSE] 全局设置不存在，创建默认设置 - 语言: ${language}`)
+          //console.log(`[SSE] 全局设置不存在，创建默认设置 - 语言: ${language}`)
           globalSettings = await d1GlobalSettings.create(env, {
             language,
             websiteTitle: 'SunPanel',
@@ -2130,7 +2232,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/global-settings' && method === 'PUT') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         if (authResult.session!.role !== 'admin') {
           return errorResponse('Admin access required', 403, corsHeaders, requestId)
@@ -2172,7 +2274,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/global-settings' && method === 'POST') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         if (authResult.session!.role !== 'admin') {
           return errorResponse('Admin access required', 403, corsHeaders, requestId)
@@ -2207,7 +2309,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
                                                                                                                                                                    if (path === '/global-settings/all' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         if (authResult.session!.role !== 'admin') {
           return errorResponse('Admin access required', 403, corsHeaders, requestId)
@@ -2228,7 +2330,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/global-settings' && method === 'DELETE') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         if (authResult.session!.role !== 'admin') {
           return errorResponse('Admin access required', 403, corsHeaders, requestId)
@@ -2252,7 +2354,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/export' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const groups = await d1Groups.getAll(env, authResult.session!.user_id)
         const items = await d1Items.getAll(env, undefined, authResult.session!.user_id)
@@ -2301,7 +2403,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/import' && method === 'POST') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
         if (!csrfResult.success) return csrfResult.response!
@@ -2363,7 +2465,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/docker/containers' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
         
         if (authResult.session!.role !== 'admin') {
           return errorResponse('权限不足', 403, corsHeaders, requestId)
@@ -2374,7 +2476,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/gallery/user' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const result = await env.SUNPANEL_DB.prepare(`
           SELECT id, url, filename, user_id, is_public, created_at
@@ -2386,7 +2488,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/gallery/public' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         return jsonResponse([
           { id: '1', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/github.svg', name: 'GitHub' },
@@ -2399,21 +2501,19 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/users/profile' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders, requestId)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
         
         if (!authResult.session) {
           return errorResponse('会话无效', 401, corsHeaders, requestId)
         }
 
         const user = await env.SUNPANEL_DB.prepare(`
-          SELECT id, username, nickname, role, avatar, email FROM users WHERE id = ?
+          SELECT id, username, nickname, role, avatar, email, language FROM users WHERE id = ?
         `).bind(authResult.session.user_id).first()
 
         if (!user) {
           return errorResponse('用户不存在', 404, corsHeaders, requestId)
         }
-
-        const settings = await d1Settings.get(env, authResult.session.user_id)
 
         return jsonResponse({
           id: user.id.toString(),
@@ -2422,13 +2522,13 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
           role: user.role,
           avatar: user.avatar || '',
           email: user.email || '',
-          language: settings.language || 'zh-CN'
+          language: (user as any).language || 'zh-CN'
         }, 200, corsHeaders, requestId)
       }
 
       if (path === '/users' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const sessionUser = await env.SUNPANEL_DB.prepare(`
           SELECT role FROM users WHERE id = ?
@@ -2454,7 +2554,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/users' && method === 'POST') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
         if (!csrfResult.success) return csrfResult.response!
@@ -2486,9 +2586,14 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         const now = new Date().toISOString()
 
         const result = await env.SUNPANEL_DB.prepare(`
-          INSERT INTO users (username, nickname, email, password, role, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).bind(username, nickname || null, email || null, passwordHash, role || 'user', now, now).run()
+          INSERT INTO users (username, nickname, email, password, role, language, theme, wallpaper, wallpaper_type,
+                           show_search_bar, search_engine, items_per_row, mobile_items_per_row, tablet_items_per_row,
+                           desktop_items_per_row, show_group_names, custom_css, custom_js, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          username, nickname || null, email || null, passwordHash, role || 'user', 'zh-CN', 'light', '#1e293b', 'color',
+          1, 'https://www.bing.com/search?q=', 6, 2, 3, 6, 1, '', '', now, now
+        ).run()
 
         return jsonResponse({
           id: (result.meta?.last_row_id || 0).toString(),
@@ -2509,7 +2614,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
           
           if (!authResult.success) {
             // log(`[PUT /users/profile] 认证失败`, 'warn', requestId)
-            return authResult.response!
+            return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
           }
           
           // log(`[PUT /users/profile] 认证成功, 检查会话`, 'info', requestId)
@@ -2539,34 +2644,21 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
           // log(`[PUT /users/profile] 更新用户ID: ${authResult.session.user_id}, 语言: ${language}`, 'info', requestId)
           
-          // log(`[PUT /users/profile] 开始更新 users 表`, 'info', requestId)
           await env.SUNPANEL_DB.prepare(`
-            UPDATE users SET nickname = ?, email = ?, avatar = ?, updated_at = ? WHERE id = ?
-          `).bind(nickname || null, email || null, avatar || null, new Date().toISOString(), authResult.session.user_id).run()
-          // log(`[PUT /users/profile] users 表更新成功`, 'info', requestId)
+            UPDATE users SET nickname = ?, email = ?, avatar = ?, language = ?, updated_at = ? WHERE id = ?
+          `).bind(nickname || null, email || null, avatar || null, language || null, new Date().toISOString(), authResult.session.user_id).run()
 
-          if (language) {
-            // log(`[PUT /users/profile] 开始更新 settings 表语言: ${language}`, 'info', requestId)
-            const updateResult = await d1Settings.update(env, { language }, authResult.session.user_id)
-            // log(`[PUT /users/profile] settings 表更新成功: ${JSON.stringify(updateResult)}`, 'info', requestId)
-          }
-
-          // log(`[PUT /users/profile] 开始查询更新后的用户信息`, 'info', requestId)
           const updatedUser = await env.SUNPANEL_DB.prepare(`
-            SELECT id, username, nickname, email, avatar, role FROM users WHERE id = ?
+            SELECT id, username, nickname, email, avatar, role, language, theme, wallpaper, wallpaper_type,
+                   show_search_bar, search_engine, items_per_row, mobile_items_per_row, tablet_items_per_row,
+                   desktop_items_per_row, show_group_names, custom_css, custom_js 
+            FROM users WHERE id = ?
           `).bind(authResult.session.user_id).first()
 
           if (!updatedUser) {
-            // log(`[PUT /users/profile] 用户不存在`, 'warn', requestId)
             return errorResponse('用户不存在', 404, corsHeaders, requestId)
           }
 
-          // log(`[PUT /users/profile] 开始获取 settings`, 'info', requestId)
-          const settings = await d1Settings.get(env, authResult.session.user_id)
-          // log(`[PUT /users/profile] 获取 settings 成功: ${settings.language}`, 'info', requestId)
-
-          // log(`[PUT /users/profile] 更新成功`, 'info', requestId)
-          
           const profileData = {
             id: updatedUser.id.toString(),
             username: updatedUser.username,
@@ -2574,22 +2666,22 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
             email: updatedUser.email || '',
             avatar: updatedUser.avatar || '',
             role: updatedUser.role,
-            language: settings.language || 'zh-CN'
+            language: (updatedUser as any).language || 'zh-CN'
           }
 
           await broadcastToUserOld(authResult.session.user_id, 'settings_changed', {
-            theme: settings.theme || 'light',
-            language: settings.language || 'zh-CN',
-            wallpaper: settings.wallpaper || '#1e293b',
-            wallpaperType: settings.wallpaper_type || 'color',
-            showSearchBar: settings.show_search_bar === 1,
-            searchEngine: settings.search_engine || 'https://www.bing.com/search?q=',
-            itemsPerRow: settings.items_per_row || 6,
-            mobileItemsPerRow: settings.mobile_items_per_row || 2,
-            tabletItemsPerRow: settings.tablet_items_per_row || 3,
-            desktopItemsPerRow: settings.desktop_items_per_row || 6,
-            showGroupNames: settings.show_group_names === 1,
-            customCSS: settings.custom_css || ''
+            theme: (updatedUser as any).theme || 'light',
+            language: (updatedUser as any).language || 'zh-CN',
+            wallpaper: (updatedUser as any).wallpaper || '#1e293b',
+            wallpaperType: (updatedUser as any).wallpaper_type || 'color',
+            showSearchBar: ((updatedUser as any).show_search_bar === 1),
+            searchEngine: (updatedUser as any).search_engine || 'https://www.bing.com/search?q=',
+            itemsPerRow: (updatedUser as any).items_per_row || 6,
+            mobileItemsPerRow: (updatedUser as any).mobile_items_per_row || 2,
+            tabletItemsPerRow: (updatedUser as any).tablet_items_per_row || 3,
+            desktopItemsPerRow: (updatedUser as any).desktop_items_per_row || 6,
+            showGroupNames: ((updatedUser as any).show_group_names === 1),
+            customCSS: (updatedUser as any).custom_css || ''
           }, env)
           
           return jsonResponse(profileData, 200, corsHeaders, requestId)
@@ -2601,7 +2693,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path.startsWith('/users/') && method === 'PUT') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session, requestId)
         if (!csrfResult.success) return csrfResult.response!
@@ -2637,7 +2729,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path.startsWith('/users/') && method === 'DELETE') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
         if (!csrfResult.success) return csrfResult.response!
@@ -2661,14 +2753,13 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         await env.SUNPANEL_DB.prepare(`DELETE FROM groups WHERE user_id = ?`).bind(userId).run()
         await env.SUNPANEL_DB.prepare(`DELETE FROM items WHERE user_id = ?`).bind(userId).run()
         await env.SUNPANEL_DB.prepare(`DELETE FROM images WHERE user_id = ?`).bind(userId).run()
-        await env.SUNPANEL_DB.prepare(`DELETE FROM settings WHERE user_id = ?`).bind(userId).run()
 
         return jsonResponse({ success: true, message: '删除成功' }, 200, corsHeaders, requestId)
       }
 
       if (path === '/users/change-password' && method === 'POST') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
         if (!csrfResult.success) return csrfResult.response!
@@ -2707,9 +2798,36 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         return jsonResponse({ success: true, message: '密码修改成功，请重新登录' }, 200, corsHeaders, requestId)
       }
 
+      // GET /users/settings - 获取用户设置
+      if (path === '/users/settings' && method === 'GET') {
+        try {
+          const authResult = await authenticate(request, env, corsHeaders)
+          if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
+          
+          if (!authResult.session || !authResult.session.user_id) {
+            console.error('[d1Settings] Session 无效:', authResult.session)
+            return errorResponse('会话无效', 401, corsHeaders, requestId)
+          }
+
+          const userId = authResult.session.user_id
+          console.log(`[d1Settings] 获取用户设置 - 用户ID: ${userId}`)
+
+          const settings = await d1Settings.get(env, userId)
+          console.log(`[d1Settings] 返回设置:`, JSON.stringify(settings))
+
+          return jsonResponse({ 
+            success: true, 
+            data: settings 
+          }, 200, corsHeaders, requestId)
+        } catch (error) {
+          console.error('[d1Settings] 获取用户设置失败:', error)
+          return errorResponse(`获取用户设置失败: ${error}`, 500, corsHeaders, requestId)
+        }
+      }
+
       if (path === '/users/avatar' && method === 'POST') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
         if (!csrfResult.success) return csrfResult.response!
@@ -2770,7 +2888,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/public-gallery' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         return jsonResponse([
           { id: '1', url: 'https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/github.svg', name: 'GitHub' },
@@ -2821,9 +2939,14 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
           const now = new Date().toISOString()
 
           await env.SUNPANEL_DB.prepare(`
-            INSERT INTO users (username, password, nickname, role, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-          `).bind(username, passwordHash, nickname || username, role, now, now).run()
+            INSERT INTO users (username, password, nickname, role, language, theme, wallpaper, wallpaper_type,
+                             show_search_bar, search_engine, items_per_row, mobile_items_per_row, tablet_items_per_row,
+                             desktop_items_per_row, show_group_names, custom_css, custom_js, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            username, passwordHash, nickname || username, role, 'zh-CN', 'light', '#1e293b', 'color',
+            1, 'https://www.bing.com/search?q=', 6, 2, 3, 6, 1, '', '', now, now
+          ).run()
 
           // log(`新用户注册: ${username}, 角色: ${role}`, 'info', requestId)
 
@@ -2838,7 +2961,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/groups/reorder' && method === 'POST') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
         if (!csrfResult.success) return csrfResult.response!
@@ -2859,7 +2982,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/items/reorder' && method === 'POST') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
         if (!csrfResult.success) return csrfResult.response!
@@ -2880,7 +3003,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path.match(/^\/docker\/containers\/[^/]+\/start$/) && method === 'POST') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
         
         if (authResult.session!.role !== 'admin') {
           return errorResponse('权限不足', 403, corsHeaders, requestId)
@@ -2891,7 +3014,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path.match(/^\/docker\/containers\/[^/]+\/stop$/) && method === 'POST') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
         
         if (authResult.session!.role !== 'admin') {
           return errorResponse('权限不足', 403, corsHeaders, requestId)
@@ -2902,7 +3025,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path.match(/^\/docker\/containers\/[^/]+\/restart$/) && method === 'POST') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
         
         if (authResult.session!.role !== 'admin') {
           return errorResponse('权限不足', 403, corsHeaders, requestId)
@@ -2917,7 +3040,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) {
           log('认证失败', 'warn', requestId)
-          return authResult.response!
+          return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
         }
         log('认证成功', 'info', requestId)
 
@@ -3004,7 +3127,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path.match(/^\/gallery\/[^/]+$/) && method === 'DELETE') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
         if (!csrfResult.success) return csrfResult.response!
@@ -3040,10 +3163,10 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/sse' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response!
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
         const userId = authResult.session!.user_id
-        console.log(`[SSE] SSE 连接请求 - 用户: ${userId}`)
+        //console.log(`[SSE] SSE 连接请求 - 用户: ${userId}`)
 
         const encoder = new TextEncoder()
         const messageKey = `sse_messages_${userId}`
@@ -3057,55 +3180,55 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         const stream = new ReadableStream({
           async start(controller) {
             controller.enqueue(encoder.encode(sendEvent('connected', { message: 'SSE 连接已建立' })))
-            console.log(`[SSE] SSE 连接已建立 - 用户: ${userId}`)
+            //console.log(`[SSE] SSE 连接已建立 - 用户: ${userId}`)
 
             const checkMessages = async () => {
               try {
-                console.log(`[SSE] 检查消息 - 用户: ${userId}`)
+                //console.log(`[SSE] 检查消息 - 用户: ${userId}`)
                 
                 let messagesJson = await env.IMAGES_KV.get(messageKey, 'text')
-                console.log(`[SSE] KV读取结果 - 用户: ${userId}, 是否存在: ${!!messagesJson}, 类型: ${typeof messagesJson}, 长度: ${messagesJson ? messagesJson.length : 0}`)
+                //console.log(`[SSE] KV读取结果 - 用户: ${userId}, 是否存在: ${!!messagesJson}, 类型: ${typeof messagesJson}, 长度: ${messagesJson ? messagesJson.length : 0}`)
                 
                 if (messagesJson) {
-                  console.log(`[SSE] 消息内容 - 用户: ${userId}, 内容: ${messagesJson}`)
+                  //console.log(`[SSE] 消息内容 - 用户: ${userId}, 内容: ${messagesJson}`)
                   try {
                     const messages: Array<{ id: number; event: string; data: any }> = JSON.parse(messagesJson)
-                    console.log(`[SSE] 解析消息成功 - 用户: ${userId}, 消息总数: ${messages.length}`)
+                    //console.log(`[SSE] 解析消息成功 - 用户: ${userId}, 消息总数: ${messages.length}`)
                     
                     const newMessages = messages.filter(m => m.id > lastMessageIdRef.value)
-                    console.log(`[SSE] 新消息过滤 - 用户: ${userId}, 过滤前: ${messages.length}, 过滤后: ${newMessages.length}, 最后消息ID: ${lastMessageIdRef.value}`)
+                    //console.log(`[SSE] 新消息过滤 - 用户: ${userId}, 过滤前: ${messages.length}, 过滤后: ${newMessages.length}, 最后消息ID: ${lastMessageIdRef.value}`)
                     
                     if (newMessages.length > 0) {
-                      console.log(`[SSE] 准备发送消息 - 用户: ${userId}, 数量: ${newMessages.length}`)
+                      //console.log(`[SSE] 准备发送消息 - 用户: ${userId}, 数量: ${newMessages.length}`)
                       for (const msg of newMessages) {
-                        console.log(`[SSE] 发送事件 - 用户: ${userId}, 事件名: ${msg.event}, 消息ID: ${msg.id}`)
+                        //console.log(`[SSE] 发送事件 - 用户: ${userId}, 事件名: ${msg.event}, 消息ID: ${msg.id}`)
                         controller.enqueue(encoder.encode(sendEvent(msg.event, msg.data)))
                         lastMessageIdRef.value = msg.id
-                        console.log(`[SSE] 消息已发送 - 用户: ${userId}, 最后消息ID更新为: ${lastMessageIdRef.value}`)
+                        //console.log(`[SSE] 消息已发送 - 用户: ${userId}, 最后消息ID更新为: ${lastMessageIdRef.value}`)
                       }
 
                       const remainingMessages = messages.filter(m => m.id > lastMessageIdRef.value)
-                      console.log(`[SSE] 剩余消息 - 用户: ${userId}, 数量: ${remainingMessages.length}`)
+                      //console.log(`[SSE] 剩余消息 - 用户: ${userId}, 数量: ${remainingMessages.length}`)
                       if (remainingMessages.length > 0) {
                         await env.IMAGES_KV.put(messageKey, JSON.stringify(remainingMessages))
-                        console.log(`[SSE] 剩余消息已存储 - 用户: ${userId}`)
+                        //console.log(`[SSE] 剩余消息已存储 - 用户: ${userId}`)
                       } else {
                         await env.IMAGES_KV.delete(messageKey)
-                        console.log(`[SSE] 消息已清空 - 用户: ${userId}`)
+                        //console.log(`[SSE] 消息已清空 - 用户: ${userId}`)
                       }
                     } else {
-                      console.log(`[SSE] 无新消息 - 用户: ${userId}`)
+                      ////console.log(`[SSE] 无新消息 - 用户: ${userId}`)
                     }
                   } catch (parseError) {
-                    console.log(`[SSE] 解析消息失败 - 用户: ${userId}, 错误: ${parseError}`)
+                    //console.log(`[SSE] 解析消息失败 - 用户: ${userId}, 错误: ${parseError}`)
                     await env.IMAGES_KV.delete(messageKey)
-                    console.log(`[SSE] 已删除损坏的消息 - 用户: ${userId}`)
+                    //console.log(`[SSE] 已删除损坏的消息 - 用户: ${userId}`)
                   }
                 } else {
-                  console.log(`[SSE] 无消息 - 用户: ${userId}`)
+                  //console.log(`[SSE] 无消息 - 用户: ${userId}`)
                 }
               } catch (error) {
-                console.log(`[SSE] 检查消息失败 - 用户: ${userId}, 错误: ${error}`)
+                //console.log(`[SSE] 检查消息失败 - 用户: ${userId}, 错误: ${error}`)
               }
             }
 
@@ -3119,12 +3242,12 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
             if (controller.signal) {
               controller.signal.addEventListener('abort', () => {
                 clearInterval(interval)
-                console.log(`[SSE] SSE 连接断开 - 用户: ${userId}`)
+                //console.log(`[SSE] SSE 连接断开 - 用户: ${userId}`)
               })
             }
           },
           cancel() {
-            console.log(`[SSE] SSE 流被取消 - 用户: ${userId}`)
+            //console.log(`[SSE] SSE 流被取消 - 用户: ${userId}`)
           }
         })
 
