@@ -115,13 +115,10 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ t('admin.role') || '角色' }}</label>
-            <select 
-              v-model="userForm.role" 
-              class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-400 outline-none appearance-none cursor-pointer bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%236B7280%22%20d%3D%22M10.293%203.293L6%207.586%201.707%203.293A1%201%200%2000.293%204.707l5%205a1%201%200%20001.414%200l5-5a1%201%200%2010-1.414-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.75rem_center]"
-            >
-              <option value="user">{{ t('admin.user') || '用户' }}</option>
-              <option value="admin">{{ t('admin.admin') || '管理员' }}</option>
-            </select>
+            <CustomSelect
+              :options="roleOptions"
+              v-model="userForm.role"
+            />
           </div>
           <div class="flex justify-end gap-3 pt-4">
             <button 
@@ -161,6 +158,7 @@ import { userApi } from '@/api'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import ErrorMessage from '@/components/ErrorMessage.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import CustomSelect from '@/components/CustomSelect.vue'
 import type { User } from '@/types'
 
 const authStore = useAuthStore()
@@ -183,6 +181,11 @@ const userForm = reactive({
   password: '',
   role: 'user' as 'user' | 'admin'
 })
+
+const roleOptions = [
+  { value: 'user', label: t('admin.user') || '用户' },
+  { value: 'admin', label: t('admin.admin') || '管理员' }
+]
 
 const fetchUsers = async () => {
   isLoading.value = true

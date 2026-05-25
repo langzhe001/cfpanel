@@ -63,28 +63,20 @@
 
         <div>
           <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ profileTexts.language || '语言' }}</label>
-          <select
+          <CustomSelect
+            :options="languageOptions"
             v-model="form.language"
-            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-400 outline-none appearance-none cursor-pointer bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%236B7280%22%20d%3D%22M10.293%203.293L6%207.586%201.707%203.293A1%201%200%2000.293%204.707l5%205a1%201%200%20001.414%200l5-5a1%201%200%2010-1.414-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.75rem_center]"
-          >
-            <option value="zh-CN">简体中文</option>
-            <option value="en-US">English</option>
-            <option value="ja-JP">日本語</option>
-            <option value="ko-KR">한국어</option>
-          </select>
+            :placeholder="profileTexts.language || '语言'"
+          />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{{ profileTexts.searchEngine || '搜索引擎' }}</label>
-          <select
+          <CustomSelect
+            :options="searchEngineOptions"
             v-model="form.searchEngine"
-            class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-slate-400 outline-none appearance-none cursor-pointer bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%236B7280%22%20d%3D%22M10.293%203.293L6%207.586%201.707%203.293A1%201%200%2000.293%204.707l5%205a1%201%200%20001.414%200l5-5a1%201%200%2010-1.414-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.75rem_center]"
-          >
-            <option value="https://www.bing.com/search?q=">Bing</option>
-            <option value="https://www.google.com/search?q=">Google</option>
-            <option value="https://www.baidu.com/s?wd=">百度</option>
-            <option value="https://www.so.com/s?q=">360搜索</option>
-          </select>
+            :placeholder="profileTexts.searchEngine || '搜索引擎'"
+          />
         </div>
 
         <div class="flex justify-end gap-3">
@@ -175,6 +167,7 @@ import { usePageTexts } from '@/composables/useI18n'
 import { useSSE } from '@/composables/useSSE'
 import { userApi } from '@/api'
 import ErrorMessage from '@/components/ErrorMessage.vue'
+import CustomSelect from '@/components/CustomSelect.vue'
 import { sanitizeNickname, validateEmail, containsXss } from '@/utils/security'
 
 const showSuccess = ref(false)
@@ -199,6 +192,20 @@ const { profile: profileTexts, t } = usePageTexts()
 const error = ref('')
 const isSaving = ref(false)
 const isChangingPassword = ref(false)
+
+const languageOptions = [
+  { value: 'zh-CN', label: '简体中文' },
+  { value: 'en-US', label: 'English' },
+  { value: 'ja-JP', label: '日本語' },
+  { value: 'ko-KR', label: '한국어' }
+]
+
+const searchEngineOptions = [
+  { value: 'https://www.bing.com/search?q=', label: 'Bing' },
+  { value: 'https://www.google.com/search?q=', label: 'Google' },
+  { value: 'https://www.baidu.com/s?wd=', label: '百度' },
+  { value: 'https://www.so.com/s?q=', label: '360搜索' }
+]
 
 const form = reactive({
   username: '',

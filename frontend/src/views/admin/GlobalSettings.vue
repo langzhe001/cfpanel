@@ -14,15 +14,12 @@
           <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ pageTitle }}</h3>
           <div class="flex items-center gap-3">
             <label class="text-sm font-medium text-slate-600 dark:text-slate-400">{{ languageLabel }}:</label>
-            <select
-              v-model="currentLanguage"
-              @change="onLanguageChange"
-              class="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-slate-400 outline-none appearance-none cursor-pointer bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%236B7280%22%20d%3D%22M10.293%203.293L6%207.586%201.707%203.293A1%201%200%2000.293%204.707l5%205a1%201%200%20001.414%200l5-5a1%201%200%2010-1.414-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_0.5rem_center] pr-8"
-            >
-              <option v-for="lang in configuredLanguages" :key="lang.code" :value="lang.code">
-                {{ lang.name }}
-              </option>
-            </select>
+            <div class="w-32">
+              <CustomSelect
+                :options="languageOptions"
+                v-model="currentLanguage"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -396,12 +393,13 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted, watch } from 'vue'
 import { useGlobalSettingsStore } from '@/stores/globalSettings'
 import { globalSettingsApi } from '@/api'
 import { usePageTexts } from '@/composables/useI18n'
 import { eventBus, EVENTS } from '@/composables/useEventBus'
 import ErrorMessage from '@/components/ErrorMessage.vue'
+import CustomSelect from '@/components/CustomSelect.vue'
 
 const globalSettingsStore = useGlobalSettingsStore()
 const { t } = usePageTexts()
@@ -455,6 +453,13 @@ const languageForms = reactive({
 })
 
 const currentLanguage = ref('zh-CN')
+const languageOptions = computed(() => {
+  return configuredLanguages.value.map(lang => ({
+    value: lang.code,
+    label: lang.name
+  }))
+})
+
 const configuredLanguages = ref<Array<{ code: string; name: string }>>([
   { code: 'zh-CN', name: '中文 (Chinese)' },
   { code: 'en-US', name: 'English (英文)' },
@@ -538,10 +543,16 @@ const loadAllLanguageSettings = async () => {
   }
 }
 
-const onLanguageChange = () => {
-  // 语言切换时不需要保存，只是显示对应语言的表单
+const onLanguageChange = async () => {
+  // 语言切换时自动保存设置
   console.log('切换到语言:', currentLanguage.value)
+  await saveSettings()
 }
+
+// 监听语言变化
+watch(currentLanguage, () => {
+  onLanguageChange()
+})
 
 const saveSettings = async () => {
   isLoading.value = true
