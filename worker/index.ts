@@ -310,15 +310,16 @@ const getCorsHeaders = (request: Request, env: Env): Record<string, string> => {
 const securityHeaders = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
-  'X-XSS-Protection': '1; mode=block',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests",
-  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-  'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=()',
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests",
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+  'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=(), accelerometer=(), gyroscope=(), magnetometer=(), ambient-light-sensor=()',
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Cross-Origin-Resource-Policy': 'same-origin',
   'X-Permitted-Cross-Domain-Policies': 'none',
-  'Expect-CT': 'max-age=86400, enforce'
+  'X-DNS-Prefetch-Control': 'off',
+  'Origin-Agent-Cluster': '?1',
+  'X-Robots-Tag': 'none'
 }
 
 const generateRequestId = (): string => {
@@ -337,7 +338,8 @@ const sanitizeLogValue = (value: unknown): string => {
     /token/i,
     /secret/i,
     /csrf/i,
-    /authorization/i
+    /authorization/i,
+    /session/i
   ]
   
   if (sensitivePatterns.some(pattern => pattern.test(strValue))) {
@@ -351,11 +353,52 @@ const sanitizeLogValue = (value: unknown): string => {
   return strValue
 }
 
-const log = (message: string, level: 'info' | 'warn' | 'error' = 'info', requestId?: string) => {
+type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal'
+
+interface LogEntry {
+  timestamp: string
+  level: LogLevel
+  requestId?: string
+  message: string
+  context?: Record<string, unknown>
+  error?: Error
+}
+
+const log = (message: string, level: LogLevel = 'info', requestId?: string, context?: Record<string, unknown>) => {
   const timestamp = new Date().toISOString()
   const requestPrefix = requestId ? `[${requestId}] ` : ''
   const sanitizedMessage = sanitizeLogValue(message)
-  console.log(`[${level.toUpperCase()}] ${timestamp} - ${requestPrefix}${sanitizedMessage}`)
+  
+  const logEntry: LogEntry = {
+    timestamp,
+    level,
+    requestId,
+    message: sanitizedMessage
+  }
+  
+  if (context) {
+    const sanitizedContext: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(context)) {
+      sanitizedContext[key] = sanitizeLogValue(value)
+    }
+    logEntry.context = sanitizedContext
+  }
+  
+  if (level === 'fatal' || level === 'error') {
+    console.error(JSON.stringify(logEntry))
+  } else if (level === 'warn') {
+    console.warn(JSON.stringify(logEntry))
+  } else {
+    console.log(JSON.stringify(logEntry))
+  }
+}
+
+const logger = {
+  debug: (message: string, requestId?: string, context?: Record<string, unknown>) => log(message, 'debug', requestId, context),
+  info: (message: string, requestId?: string, context?: Record<string, unknown>) => log(message, 'info', requestId, context),
+  warn: (message: string, requestId?: string, context?: Record<string, unknown>) => log(message, 'warn', requestId, context),
+  error: (message: string, requestId?: string, context?: Record<string, unknown>) => log(message, 'error', requestId, context),
+  fatal: (message: string, requestId?: string, context?: Record<string, unknown>) => log(message, 'fatal', requestId, context)
 }
 
 type AuditEventType = 'LOGIN' | 'LOGOUT' | 'REGISTER' | 'PASSWORD_CHANGE' | 'PROFILE_UPDATE' | 'DATA_EXPORT' | 'DATA_IMPORT' | 'GROUP_CREATE' | 'GROUP_UPDATE' | 'GROUP_DELETE' | 'ITEM_CREATE' | 'ITEM_UPDATE' | 'ITEM_DELETE' | 'IMAGE_UPLOAD' | 'IMAGE_DELETE' | 'LOGIN_FAILED' | 'RATE_LIMIT_EXCEEDED' | 'CSRF_VALIDATION_FAILED' | 'UNAUTHORIZED_ACCESS'
@@ -450,7 +493,13 @@ const jsonResponseWithCookies = (data: any, cookieHeader: string, status = 200, 
   })
 }
 
-const errorResponse = (message: string, status = 400, corsHeaders: Record<string, string>, requestId?: string) => {
+interface ErrorDetails {
+  code?: string
+  field?: string
+  details?: string
+}
+
+const errorResponse = (message: string, status = 400, corsHeaders: Record<string, string>, requestId?: string, details?: ErrorDetails) => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...corsHeaders,
@@ -460,12 +509,18 @@ const errorResponse = (message: string, status = 400, corsHeaders: Record<string
     headers['X-Request-Id'] = requestId
   }
   
-  return new Response(JSON.stringify({
+  const errorBody: Record<string, any> = {
     code: status,
     message,
     data: null,
     requestId
-  }), {
+  }
+  
+  if (details) {
+    errorBody.details = details
+  }
+  
+  return new Response(JSON.stringify(errorBody), {
     status,
     headers
   })
@@ -684,6 +739,29 @@ const ImportSchema = z.object({
   settings: SettingsSchema.partial().optional()
 })
 
+const GlobalSettingsSchema = z.object({
+  language: z.string().min(2).max(10),
+  websiteTitle: z.string().max(200).optional(),
+  websiteDescription: z.string().max(500).optional(),
+  pageTexts: z.record(z.string(), z.string()).optional(),
+  footerText: z.string().max(500).optional()
+})
+
+const CreateUserSchema = z.object({
+  username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, '用户名只能包含字母、数字和下划线'),
+  password: PasswordSchema,
+  nickname: z.string().max(100).optional(),
+  email: z.string().email().optional(),
+  role: z.enum(['admin', 'user']).optional()
+})
+
+const UpdateProfileSchema = z.object({
+  nickname: z.string().max(100).optional(),
+  email: z.string().email().optional(),
+  avatar: z.string().max(500).optional(),
+  language: z.string().min(2).max(10).optional()
+})
+
 const hashPassword = async (password: string): Promise<string> => {
   const salt = await bcrypt.genSalt(12)
   return bcrypt.hash(password, salt)
@@ -810,32 +888,23 @@ interface MiddlewareResult {
 }
 
 const authenticate = async (request: Request, env: Env, corsHeaders: Record<string, string>, requestId?: string): Promise<MiddlewareResult> => {
-  // log(`[AUTH] 开始认证`, 'info', requestId)
-  
   const token = verifyToken(request)
-  // log(`[AUTH] Token: ${token ? '存在' : '不存在'}`, 'info', requestId)
   
   if (!token) {
     return { success: false, response: errorResponse('未登录', 401, corsHeaders) }
   }
 
-  const session = await d1Sessions.getById(env, token)
-  // log(`[AUTH] Session: ${session ? '存在' : '不存在'}`, 'info', requestId)
+  const session = await d1Sessions.getByIdWithRefresh(env, token)
   
   if (!session) {
     return { success: false, response: errorResponse('Token 无效', 401, corsHeaders) }
   }
 
-  // log(`[AUTH] Session ID: ${session.id}, User ID: ${session.user_id}`, 'info', requestId)
-  
   if (!session.id) {
     return { success: false, response: errorResponse('会话ID无效', 401, corsHeaders) }
   }
 
-  // log(`[AUTH] 准备返回成功结果`, 'info', requestId)
-  const result = { success: true, session }
-  // log(`[AUTH] 返回结果: success=${result.success}, session=${result.session ? '存在' : '不存在'}`, 'info', requestId)
-  return result
+  return { success: true, session }
 }
 
 const validateCsrf = async (request: Request, env: Env, corsHeaders: Record<string, string>, session: Session, requestId?: string): Promise<MiddlewareResult> => {
@@ -859,11 +928,14 @@ const validateCsrf = async (request: Request, env: Env, corsHeaders: Record<stri
   return { success: true }
 }
 
+const SESSION_EXPIRY = 7 * 24 * 60 * 60 * 1000
+const SESSION_REFRESH_THRESHOLD = 24 * 60 * 60 * 1000
+
 const d1Sessions = {
   create: async (env: Env, userId: number, username: string, role: string): Promise<Session> => {
     const id = generateToken()
     const csrfToken = generateCsrfToken()
-    const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000
+    const expiresAt = Date.now() + SESSION_EXPIRY
     const now = new Date().toISOString()
 
     await env.SUNPANEL_DB.prepare(`
@@ -875,29 +947,43 @@ const d1Sessions = {
   },
 
   getById: async (env: Env, id: string): Promise<Session | null> => {
-    // console.log(`[d1Sessions.getById] 会话ID: ${id}`)
     const result = await env.SUNPANEL_DB.prepare(`
       SELECT id, user_id, username, role, csrf_token, expires_at, created_at
       FROM sessions WHERE id = ?
     `).bind(id).first()
-    // console.log(`[d1Sessions.getById] 查询结果: ${result ? JSON.stringify(result) : 'null'}`)
 
     if (!result) return null
     
     if (!result.id) {
-      // console.log(`[d1Sessions.getById] 会话ID为空`)
       return null
     }
 
     const now = Date.now()
     if (result.expires_at && now > result.expires_at) {
-      // console.log(`[d1Sessions.getById] 会话已过期`)
       await d1Sessions.delete(env, id)
       return null
     }
 
-    // console.log(`[d1Sessions.getById] 返回会话: id=${result.id}, user_id=${result.user_id}`)
     return result as Session
+  },
+
+  getByIdWithRefresh: async (env: Env, id: string): Promise<Session | null> => {
+    const session = await d1Sessions.getById(env, id)
+    if (!session) return null
+
+    const now = Date.now()
+    if (session.expires_at && now + SESSION_REFRESH_THRESHOLD > session.expires_at) {
+      await d1Sessions.refresh(env, id)
+    }
+
+    return session
+  },
+
+  refresh: async (env: Env, sessionId: string): Promise<void> => {
+    const newExpiresAt = Date.now() + SESSION_EXPIRY
+    await env.SUNPANEL_DB.prepare(`
+      UPDATE sessions SET expires_at = ? WHERE id = ?
+    `).bind(newExpiresAt, sessionId).run()
   },
 
   updateCsrfToken: async (env: Env, sessionId: string): Promise<string> => {
@@ -910,6 +996,18 @@ const d1Sessions = {
 
   delete: async (env: Env, id: string): Promise<void> => {
     await env.SUNPANEL_DB.prepare(`DELETE FROM sessions WHERE id = ?`).bind(id).run()
+  },
+
+  deleteByUserId: async (env: Env, userId: number): Promise<void> => {
+    await env.SUNPANEL_DB.prepare(`DELETE FROM sessions WHERE user_id = ?`).bind(userId).run()
+  },
+
+  getAllByUserId: async (env: Env, userId: number): Promise<Session[]> => {
+    const result = await env.SUNPANEL_DB.prepare(`
+      SELECT id, user_id, username, role, csrf_token, expires_at, created_at
+      FROM sessions WHERE user_id = ? ORDER BY created_at DESC
+    `).bind(userId).all()
+    return result.results as Session[]
   },
 
   validateCsrfToken: async (env: Env, sessionId: string, csrfToken: string): Promise<boolean> => {
@@ -925,6 +1023,13 @@ const d1Sessions = {
 
   cleanupExpired: async (env: Env): Promise<void> => {
     await env.SUNPANEL_DB.prepare(`DELETE FROM sessions WHERE expires_at < ?`).bind(Date.now()).run()
+  },
+
+  getActiveSessionCount: async (env: Env, userId: number): Promise<number> => {
+    const result = await env.SUNPANEL_DB.prepare(`
+      SELECT COUNT(*) as count FROM sessions WHERE user_id = ? AND expires_at > ?
+    `).bind(userId, Date.now()).first()
+    return result?.count || 0
   }
 }
 
@@ -2242,11 +2347,13 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         if (!csrfResult.success) return csrfResult.response!
 
         const body = await request.json()
-        const { language, websiteTitle, websiteDescription, pageTexts, footerText } = body
-
-        if (!language) {
-          return errorResponse('Language is required', 400, corsHeaders, requestId)
+        const validation = GlobalSettingsSchema.safeParse(body)
+        if (!validation.success) {
+          const errorMessages = validation.error?.issues?.map(e => e.message) || []
+          return errorResponse('输入验证失败: ' + errorMessages.join(', '), 400, corsHeaders, requestId)
         }
+
+        const { language, websiteTitle, websiteDescription, pageTexts, footerText } = validation.data
 
         const updated = await d1GlobalSettings.update(env, language, {
           websiteTitle,
@@ -2284,11 +2391,13 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         if (!csrfResult.success) return csrfResult.response!
 
         const body = await request.json()
-        const { language, websiteTitle, websiteDescription, pageTexts, footerText } = body
-
-        if (!language) {
-          return errorResponse('Language is required', 400, corsHeaders, requestId)
+        const validation = GlobalSettingsSchema.safeParse(body)
+        if (!validation.success) {
+          const errorMessages = validation.error?.issues?.map(e => e.message) || []
+          return errorResponse('输入验证失败: ' + errorMessages.join(', '), 400, corsHeaders, requestId)
         }
+
+        const { language, websiteTitle, websiteDescription, pageTexts, footerText } = validation.data
 
         const created = await d1GlobalSettings.create(env, {
           language,
@@ -2568,11 +2677,13 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         }
 
         const body = await request.json()
-        const { username, nickname, email, password, role } = body
-
-        if (!username || !password) {
-          return errorResponse('用户名和密码不能为空', 400, corsHeaders, requestId)
+        const validation = CreateUserSchema.safeParse(body)
+        if (!validation.success) {
+          const errorMessages = validation.error?.issues?.map(e => e.message) || []
+          return errorResponse('输入验证失败: ' + errorMessages.join(', '), 400, corsHeaders, requestId)
         }
+
+        const { username, nickname, email, password, role } = validation.data
 
         const existingUser = await env.SUNPANEL_DB.prepare(`
           SELECT id FROM users WHERE username = ?
@@ -2635,14 +2746,14 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
             return csrfResult.response!
           }
 
-          // log(`[PUT /users/profile] CSRF验证成功, 开始读取请求体`, 'info', requestId)
-          
           const body = await request.json()
-          // log(`[PUT /users/profile] 请求体: ${JSON.stringify(body)}`, 'info', requestId)
-          
-          const { nickname, email, avatar, language } = body
+          const validation = UpdateProfileSchema.safeParse(body)
+          if (!validation.success) {
+            const errorMessages = validation.error?.issues?.map(e => e.message) || []
+            return errorResponse('输入验证失败: ' + errorMessages.join(', '), 400, corsHeaders, requestId)
+          }
 
-          // log(`[PUT /users/profile] 更新用户ID: ${authResult.session.user_id}, 语言: ${language}`, 'info', requestId)
+          const { nickname, email, avatar, language } = validation.data
           
           await env.SUNPANEL_DB.prepare(`
             UPDATE users SET nickname = ?, email = ?, avatar = ?, language = ?, updated_at = ? WHERE id = ?
@@ -2758,6 +2869,16 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
       }
 
       if (path === '/users/change-password' && method === 'POST') {
+        if (!await checkRateLimit(clientIp, env, requestId, 'passwordChange')) {
+          await auditLog(env, 'RATE_LIMIT_EXCEEDED', {
+            ip: clientIp,
+            userAgent: request.headers.get('User-Agent') || undefined,
+            result: 'BLOCKED',
+            details: '密码修改请求过于频繁'
+          })
+          return errorResponse('密码修改请求过于频繁，请稍后再试', 429, corsHeaders, requestId)
+        }
+
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 
@@ -2767,7 +2888,8 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         const body = await request.json()
         const validation = ChangePasswordSchema.safeParse(body)
         if (!validation.success) {
-          return errorResponse('输入验证失败', 400, corsHeaders, requestId)
+          const errorMessages = validation.error?.issues?.map(e => e.message) || []
+          return errorResponse('输入验证失败: ' + errorMessages.join(', '), 400, corsHeaders, requestId)
         }
 
         const { oldPassword, newPassword } = validation.data
@@ -2794,6 +2916,14 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         await env.SUNPANEL_DB.prepare(`
           DELETE FROM sessions WHERE user_id = ?
         `).bind(userId).run()
+
+        await auditLog(env, 'PASSWORD_CHANGE', {
+          userId: authResult.session!.user_id,
+          username: authResult.session!.username,
+          ip: clientIp,
+          userAgent: request.headers.get('User-Agent') || undefined,
+          result: 'SUCCESS'
+        })
 
         return jsonResponse({ success: true, message: '密码修改成功，请重新登录' }, 200, corsHeaders, requestId)
       }
@@ -3005,6 +3135,9 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
         
+        const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
+        if (!csrfResult.success) return csrfResult.response!
+
         if (authResult.session!.role !== 'admin') {
           return errorResponse('权限不足', 403, corsHeaders, requestId)
         }
@@ -3016,6 +3149,9 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
         
+        const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
+        if (!csrfResult.success) return csrfResult.response!
+
         if (authResult.session!.role !== 'admin') {
           return errorResponse('权限不足', 403, corsHeaders, requestId)
         }
@@ -3027,6 +3163,9 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
         
+        const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
+        if (!csrfResult.success) return csrfResult.response!
+
         if (authResult.session!.role !== 'admin') {
           return errorResponse('权限不足', 403, corsHeaders, requestId)
         }

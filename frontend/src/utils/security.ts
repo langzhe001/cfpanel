@@ -20,6 +20,52 @@ export const escapeHtml = (str: string | null | undefined): string => {
 }
 
 /**
+ * 安全的 innerHTML 设置
+ * 使用 DOMPurify 风格的基础清理
+ */
+export const setSafeInnerHTML = (element: HTMLElement, html: string): void => {
+  const safeHtml = sanitizeHtml(html)
+  element.innerHTML = safeHtml
+}
+
+/**
+ * HTML 内容清理（基础实现）
+ * 移除危险标签和属性
+ */
+export const sanitizeHtml = (html: string | null | undefined): string => {
+  if (html == null) return ''
+  
+  let sanitized = String(html)
+  
+  const dangerousTags = [
+    /<script[^>]*>[\s\S]*?<\/script>/gi,
+    /<style[^>]*>[\s\S]*?<\/style>/gi,
+    /<iframe[^>]*>[\s\S]*?<\/iframe>/gi,
+    /<object[^>]*>[\s\S]*?<\/object>/gi,
+    /<embed[^>]*>[\s\S]*?<\/embed>/gi,
+    /<applet[^>]*>[\s\S]*?<\/applet>/gi,
+    /<base[^>]*>/gi,
+    /<form[^>]*>[\s\S]*?<\/form>/gi,
+    /<svg[^>]*>[\s\S]*?<\/svg>/gi,
+    /<math[^>]*>[\s\S]*?<\/math>/gi,
+    /<canvas[^>]*>[\s\S]*?<\/canvas>/gi
+  ]
+  
+  for (const pattern of dangerousTags) {
+    sanitized = sanitized.replace(pattern, '')
+  }
+  
+  sanitized = sanitized.replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
+  sanitized = sanitized.replace(/on\w+\s*=\s*[^>\s]*/gi, '')
+  
+  sanitized = sanitized.replace(/javascript:/gi, '')
+  sanitized = sanitized.replace(/vbscript:/gi, '')
+  sanitized = sanitized.replace(/data:/gi, '')
+  
+  return sanitized
+}
+
+/**
  * 反转义 HTML 特殊字符
  */
 export const unescapeHtml = (str: string | null | undefined): string => {
@@ -269,4 +315,143 @@ export const sanitizeFilename = (filename: string | null | undefined): string =>
   }
   
   return sanitized || 'file'
+}
+
+/**
+ * 生成安全的随机字符串
+ */
+export const generateSecureRandomString = (length: number = 32): string => {
+  const array = new Uint8Array(length)
+  crypto.getRandomValues(array)
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
+/**
+ * 生成安全的 UUID
+ */
+export const generateUUID = (): string => {
+  const array = new Uint8Array(16)
+  crypto.getRandomValues(array)
+  array[6] = (array[6] & 0x0f) | 0x40
+  array[8] = (array[8] & 0x3f) | 0x80
+  
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0'))
+    .join('')
+    .replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5')
+}
+
+/**
+ * 验证密码强度
+ */
+export const validatePasswordStrength = (password: string | null | undefined): {
+  strong: boolean
+  score: number
+  feedback: string
+} => {
+  if (!password) {
+    return { strong: false, score: 0, feedback: '密码不能为空' }
+  }
+  
+  let score = 0
+  
+  if (password.length >= 8) score += 1
+  if (password.length >= 12) score += 1
+  if (password.length >= 16) score += 1
+  
+  if (/[a-z]/.test(password)) score += 1
+  if (/[A-Z]/.test(password)) score += 1
+  if (/\d/.test(password)) score += 1
+  if (/[@$!%*?&]/.test(password)) score += 1
+  
+  if (/(.)\1{2,}/.test(password)) score -= 1
+  
+  let feedback = ''
+  if (score <= 2) {
+    feedback = '密码强度弱，请使用更长的密码并包含大小写字母、数字和特殊字符'
+  } else if (score <= 4) {
+    feedback = '密码强度中等，建议增加长度和复杂度'
+  } else {
+    feedback = '密码强度良好'
+  }
+  
+  return {
+    strong: score >= 5,
+    score,
+    feedback
+  }
+}
+
+/**
+ * 安全的字符串比较（时序攻击防护）
+ */
+export const secureStringCompare = (a: string, b: string): boolean => {
+  if (a.length !== b.length) return false
+  
+  let result = 0
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  }
+  
+  return result === 0
+}
+
+/**
+ * 安全的对象深拷贝
+ */
+export const deepClone = <T>(obj: T): T => {
+  if (obj === null || typeof obj !== 'object') {
+    return obj
+  }
+  
+  if (obj instanceof Date) {
+    return new Date(obj.getTime()) as T
+  }
+  
+  if (obj instanceof Array) {
+    return obj.map(item => deepClone(item)) as T
+  }
+  
+  if (typeof obj === 'object') {
+    const cloned: Record<string, any> = {}
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        cloned[key] = deepClone(obj[key])
+      }
+    }
+    return cloned as T
+  }
+  
+  return obj
+}
+
+/**
+ * 防止 JSON 原型污染
+ */
+export const safeJsonParseWithProtection = <T>(str: string | null | undefined, fallback: T): T => {
+  if (str == null) return fallback
+  
+  try {
+    const parsed = JSON.parse(str) as T
+    
+    if (typeof parsed === 'object' && parsed !== null) {
+      const hasOwnProperty = Object.prototype.hasOwnProperty
+      const checkObj = (obj: any): void => {
+        for (const key in obj) {
+          if (hasOwnProperty.call(obj, key)) {
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+              throw new Error('Prototype pollution detected')
+            }
+            if (typeof obj[key] === 'object' && obj[key] !== null) {
+              checkObj(obj[key])
+            }
+          }
+        }
+      }
+      checkObj(parsed)
+    }
+    
+    return parsed
+  } catch {
+    return fallback
+  }
 }

@@ -1,15 +1,18 @@
 // API 客户端配置和工具函数
 
-import axios, { type AxiosInstance } from 'axios'
+import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios'
 
 export const SECURITY_CONFIG = {
   CACHE_TTL: 5 * 60 * 1000,
   MAX_RETRIES: 3,
   INITIAL_RETRY_DELAY: 1000,
+  MAX_RETRY_DELAY: 10000,
+  BACKOFF_MULTIPLIER: 2,
   MAX_FILE_SIZE: 5 * 1024 * 1024,
   ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
   MAX_FILENAME_LENGTH: 255,
-  REQUEST_TIMEOUT: 15000
+  REQUEST_TIMEOUT: 15000,
+  LONG_REQUEST_TIMEOUT: 60000
 } as const
 
 interface ErrorHandler {
@@ -46,6 +49,44 @@ const showSuccessToast = (message: string) => {
   }
 }
 
+const shouldRetry = (error: any): boolean => {
+  if (error.code === 'ECONNABORTED') return true
+  if (!error.response) return true
+  if (error.response.status >= 500 && error.response.status < 600) return true
+  if (error.response.status === 429) return true
+  
+  return false
+}
+
+const retryInterceptor = async (error: any): Promise<AxiosResponse> => {
+  const config = error.config
+  
+  if (!config) {
+    return Promise.reject(error)
+  }
+  
+  const retries = config.__retryCount || 0
+  
+  if (retries >= SECURITY_CONFIG.MAX_RETRIES) {
+    return Promise.reject(error)
+  }
+  
+  if (!shouldRetry(error)) {
+    return Promise.reject(error)
+  }
+  
+  config.__retryCount = retries + 1
+  
+  const delay = Math.min(
+    SECURITY_CONFIG.INITIAL_RETRY_DELAY * Math.pow(SECURITY_CONFIG.BACKOFF_MULTIPLIER, retries),
+    SECURITY_CONFIG.MAX_RETRY_DELAY
+  )
+  
+  await new Promise(resolve => setTimeout(resolve, delay))
+  
+  return axios(config)
+}
+
 export const createApiClient = (baseURL: string = '/api'): AxiosInstance => {
   const client = axios.create({
     baseURL,
@@ -56,9 +97,85 @@ export const createApiClient = (baseURL: string = '/api'): AxiosInstance => {
     withCredentials: true
   })
 
-  client.interceptors.request.use((config) => {
+  client.interceptors.request.use((config: AxiosRequestConfig) => {
     const csrfToken = getCookie('csrf_token')
     if (csrfToken && config.method && config.method.toLowerCase() !== 'get') {
+      config.headers = config.headers || {}
+      config.headers['X-CSRF-Token'] = csrfToken
+    }
+    
+    config.headers = config.headers || {}
+    config.headers['X-Requested-With'] = 'XMLHttpRequest'
+    
+    return config
+  })
+
+  client.interceptors.response.use(
+    (response) => response.data,
+    async (error) => {
+      if (error.response?.status === 401) {
+        clearAllAuth()
+        if (isBrowser) {
+          window.location.href = '/login'
+        }
+        return Promise.reject(new Error('登录已过期，请重新登录'))
+      }
+      
+      if (error.response?.status === 403) {
+        showErrorToast(error.response?.data?.message || '权限不足')
+        return Promise.reject(error)
+      }
+      
+      const shouldDoRetry = shouldRetry(error)
+      if (shouldDoRetry) {
+        try {
+          return await retryInterceptor(error)
+        } catch (retryError) {
+          showErrorToast('请求失败，请稍后重试')
+          return Promise.reject(retryError)
+        }
+      }
+      
+      if (error.response?.status >= 500) {
+        showErrorToast('服务器错误，请稍后重试')
+        return Promise.reject(error)
+      }
+      
+      if (error.code === 'ECONNABORTED') {
+        showErrorToast('请求超时，请检查网络连接')
+        return Promise.reject(error)
+      }
+      
+      if (!error.response) {
+        showErrorToast('网络错误，请检查网络连接')
+        return Promise.reject(error)
+      }
+      
+      if (error.response?.data?.message) {
+        showErrorToast(error.response.data.message)
+      }
+      
+      return Promise.reject(error)
+    }
+  )
+
+  return client
+}
+
+export const createLongApiClient = (baseURL: string = '/api'): AxiosInstance => {
+  const client = axios.create({
+    baseURL,
+    timeout: SECURITY_CONFIG.LONG_REQUEST_TIMEOUT,
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    withCredentials: true
+  })
+
+  client.interceptors.request.use((config: AxiosRequestConfig) => {
+    const csrfToken = getCookie('csrf_token')
+    if (csrfToken && config.method && config.method.toLowerCase() !== 'get') {
+      config.headers = config.headers || {}
       config.headers['X-CSRF-Token'] = csrfToken
     }
     return config
@@ -73,22 +190,6 @@ export const createApiClient = (baseURL: string = '/api'): AxiosInstance => {
           window.location.href = '/login'
         }
         return Promise.reject(new Error('登录已过期，请重新登录'))
-      }
-      if (error.response?.status === 403) {
-        showErrorToast(error.response?.data?.message || '权限不足')
-        return Promise.reject(error)
-      }
-      if (error.response?.status >= 500) {
-        showErrorToast('服务器错误，请稍后重试')
-        return Promise.reject(error)
-      }
-      if (error.code === 'ECONNABORTED') {
-        showErrorToast('请求超时，请检查网络连接')
-        return Promise.reject(error)
-      }
-      if (!error.response) {
-        showErrorToast('网络错误，请检查网络连接')
-        return Promise.reject(error)
       }
       return Promise.reject(error)
     }
