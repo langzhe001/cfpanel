@@ -850,11 +850,12 @@ onMounted(async () => {
     console.log('[Home] 收到 SSE 消息:', message.type)
     
     switch (message.type) {
-      case 'globalSettingsChanged':
+      case 'global_settings_changed':
         // 全局设置变更，从 API 重新获取
         globalSettingsStore.loadSettings(undefined, true)
         break
       case 'settingsChanged':
+      case 'settings_changed':
         // 设置变更，从 API 重新获取
         settingsStore.loadSettings(true)
         break

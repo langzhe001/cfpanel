@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 interface Option {
   value: string | number
@@ -12,11 +12,11 @@ const props = defineProps<{
   placeholder?: string
 }>()
 
-const emit = defineEmits<{
-  'update:modelValue': [value: string | number]
-}>()
+const emit = defineEmits(['update:modelValue'])
 
 const isOpen = ref(false)
+const wrapperRef = ref<HTMLElement>()
+
 const selectedOption = computed(() => {
   return props.options.find(opt => opt.value === props.modelValue)
 })
@@ -34,13 +34,27 @@ const close = () => {
   isOpen.value = false
 }
 
+const handleClickOutside = (event: MouseEvent) => {
+  if (wrapperRef.value && !wrapperRef.value.contains(event.target as Node)) {
+    isOpen.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
 defineExpose({
   focus: () => {}
 })
 </script>
 
 <template>
-  <div class="relative select-wrapper">
+  <div ref="wrapperRef" class="relative select-wrapper">
     <button
       type="button"
       @click="toggleOpen"

@@ -159,7 +159,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted, onUnmounted } from 'vue'
+import { reactive, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useGlobalSettingsStore } from '@/stores/globalSettings'
 import { useSettingsStore } from '@/stores/settings'
@@ -232,18 +232,18 @@ const handleSubmit = async () => {
   try {
     isSaving.value = true
     error.value = ''
-    
+
     // 安全验证
     if (form.nickname && containsXss(form.nickname)) {
       error.value = (profileTexts.nickname || '昵称') + '包含非法字符'
       return
     }
-    
+
     if (form.email && !validateEmail(form.email)) {
       error.value = '请输入有效的邮箱地址'
       return
     }
-    
+
     const updateData: Record<string, any> = {}
     if (form.nickname !== originalForm.nickname) {
       updateData.nickname = sanitizeNickname(form.nickname)
@@ -267,13 +267,10 @@ const handleSubmit = async () => {
       }
     }
     
-    // 保存搜索引擎设置（总是发送，不管是否变化）
-    console.log('[Profile] 保存搜索引擎:', form.searchEngine)
-    // 直接通过 settingsStore 更新设置，这样会触发 SSE 通知
-    await settingsStore.updateSettings({ searchEngine: form.searchEngine })
-    console.log('[Profile] 搜索引擎保存成功')
-    // 重新加载设置以获取最新数据
-    await loadSettings()
+    // 保存搜索引擎设置
+    if (form.searchEngine !== originalForm.searchEngine) {
+      await settingsStore.updateSettings({ searchEngine: form.searchEngine })
+    }
     
     Object.assign(originalForm, form)
     showSuccessMessage('保存成功')
@@ -351,7 +348,6 @@ const loadSettings = async () => {
     await settingsStore.loadSettings(true)
     // 从 settingsStore 获取设置
     form.searchEngine = settingsStore.settings.searchEngine || 'https://www.bing.com/search?q='
-    console.log('[Profile] 加载搜索引擎设置:', form.searchEngine)
   } catch (err) {
     console.warn('加载设置失败:', err)
   }
@@ -362,7 +358,6 @@ const { on: onSSEEvent } = useSSE()
 let settingsChangedUnsubscribe: (() => void) | null = null
 
 const handleSettingsChanged = async (data: any) => {
-  console.log('[Profile] 收到设置变更通知:', data)
   // 重新加载设置
   await loadSettings()
   // 更新 originalForm

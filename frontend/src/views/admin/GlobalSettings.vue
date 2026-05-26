@@ -397,12 +397,13 @@ import { reactive, ref, computed, onMounted, watch } from 'vue'
 import { useGlobalSettingsStore } from '@/stores/globalSettings'
 import { globalSettingsApi } from '@/api'
 import { usePageTexts } from '@/composables/useI18n'
-import { eventBus, EVENTS } from '@/composables/useEventBus'
+import { eventBus, EVENTS, useCrossFrameSync } from '@/composables/useEventBus'
 import ErrorMessage from '@/components/ErrorMessage.vue'
 import CustomSelect from '@/components/CustomSelect.vue'
 
 const globalSettingsStore = useGlobalSettingsStore()
 const { t } = usePageTexts()
+const { broadcastChange } = useCrossFrameSync()
 
 const isLoading = ref(false)
 const error = ref('')
@@ -561,7 +562,7 @@ const saveSettings = async () => {
   try {
     // 保存当前选择的语言的设置
     const formData = languageForms[currentLanguage.value as keyof typeof languageForms]
-    await globalSettingsApi.update({
+    const res = await globalSettingsApi.update({
       language: currentLanguage.value,
       websiteTitle: formData.websiteTitle,
       websiteDescription: formData.websiteDescription,
@@ -569,18 +570,14 @@ const saveSettings = async () => {
       pageTexts: formData.pageTexts
     })
 
-    // 更新 store 以便前台立即看到变化
-    globalSettingsStore.settings = {
-      ...globalSettingsStore.settings,
-      language: currentLanguage.value,
-      websiteTitle: formData.websiteTitle,
-      websiteDescription: formData.websiteDescription,
-      footerText: formData.footerText,
-      pageTexts: formData.pageTexts
-    }
+    // 使用 API 返回的数据更新 store
+    globalSettingsStore.settings = res.data
 
     // 触发事件通知其他组件刷新翻译
-    eventBus.emit(EVENTS.GLOBAL_SETTINGS_CHANGED, globalSettingsStore.settings)
+    eventBus.emit(EVENTS.GLOBAL_SETTINGS_CHANGED, res.data)
+
+    // 跨窗口广播变更
+    broadcastChange(EVENTS.GLOBAL_SETTINGS_CHANGED, res.data)
 
     error.value = t('globalSettings.saveSuccess', '设置保存成功！')
     messageType.value = 'success'
