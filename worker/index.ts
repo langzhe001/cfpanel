@@ -13,6 +13,8 @@ export interface Env {
   }
   IMAGES_KV: KVNamespace
   SSE_MANAGER?: DurableObjectNamespace
+  CF_ACCOUNT_ID?: string
+  CF_API_TOKEN?: string
 }
 
 interface SSEClient {
@@ -2260,6 +2262,65 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         }, 200, corsHeaders, requestId)
       }
 
+      if (path === '/cf-usage' && method === 'GET') {
+        const authResult = await authenticate(request, env, corsHeaders)
+        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
+        
+        if (!env.CF_ACCOUNT_ID || !env.CF_API_TOKEN) {
+          return jsonResponse({
+            configured: false,
+            message: 'Cloudflare API 未配置'
+          }, 200, corsHeaders, requestId)
+        }
+
+        try {
+          const zoneId = request.headers.get('cf-zone-id') || env.CF_ACCOUNT_ID
+          const cfApiUrl = `https://api.cloudflare.com/client/v4/zones/${zoneId}/analytics/dashboard`
+          
+          const cfResponse = await fetch(cfApiUrl, {
+            headers: {
+              'Authorization': `Bearer ${env.CF_API_TOKEN}`,
+              'Content-Type': 'application/json'
+            }
+          })
+
+          if (!cfResponse.ok) {
+            return jsonResponse({
+              configured: true,
+              error: 'Cloudflare API 请求失败',
+              status: cfResponse.status
+            }, 200, corsHeaders, requestId)
+          }
+
+          const cfData = await cfResponse.json() as any
+          
+          const workerApiUrl = `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/workers/scripts/sunpanel/subdomain`
+          const workerResponse = await fetch(workerApiUrl, {
+            headers: {
+              'Authorization': `Bearer ${env.CF_API_TOKEN}`,
+              'Content-Type': 'application/json'
+            }
+          })
+
+          let workerUsage = null
+          if (workerResponse.ok) {
+            const workerData = await workerResponse.json() as any
+            workerUsage = workerData.result
+          }
+
+          return jsonResponse({
+            configured: true,
+            analytics: cfData.result || cfData,
+            worker: workerUsage
+          }, 200, corsHeaders, requestId)
+        } catch (error: any) {
+          return jsonResponse({
+            configured: true,
+            error: error.message
+          }, 200, corsHeaders, requestId)
+        }
+      }
+
       if (path === '/settings' && method === 'PUT') {
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
@@ -2311,7 +2372,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
       if (path === '/global-settings' && method === 'GET') {
         const url = new URL(request.url)
-        const language = url.searchParams.get('language') || 'zh-CN'
+        const language = 'zh-CN'
 
         let globalSettings = await d1GlobalSettings.get(env, language)
         
@@ -2355,7 +2416,7 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
 
         const { language, websiteTitle, websiteDescription, pageTexts, footerText } = validation.data
 
-        const updated = await d1GlobalSettings.update(env, language, {
+        const updated = await d1GlobalSettings.update(env, 'zh-CN', {
           websiteTitle,
           websiteDescription,
           pageTexts,
@@ -2416,7 +2477,8 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         }, 201, corsHeaders, requestId)
       }
 
-                                                                                                                                                                   if (path === '/global-settings/all' && method === 'GET') {
+      
+      if (path === '/global-settings/all' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
 

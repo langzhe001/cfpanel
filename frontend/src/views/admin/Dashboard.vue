@@ -81,6 +81,51 @@
         </div>
       </div>
 
+      <!-- Cloudflare 使用情况 -->
+      <div v-if="cfUsage?.configured" class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-card border border-slate-200 dark:border-slate-700">
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+          <Icon icon="ph:cloud-bold" class="w-5 h-5 text-orange-500" />
+          {{ t('dashboard.cloudflareUsage') }}
+        </h3>
+        <div v-if="isCFLoading" class="py-4">
+          <LoadingSpinner :text="t('common.loading')" />
+        </div>
+        <div v-else-if="cfUsage?.error" class="text-red-500 text-sm">
+          {{ cfUsage.error }}
+        </div>
+        <div v-else class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-700">
+            <p class="text-xs text-slate-500 dark:text-slate-400">{{ t('dashboard.totalRequests') }}</p>
+            <p class="text-lg font-bold text-slate-800 dark:text-slate-200">{{ cfUsage?.analytics?.totals?.requests || 0 }}</p>
+          </div>
+          <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-700">
+            <p class="text-xs text-slate-500 dark:text-slate-400">{{ t('dashboard.totalBandwidth') }}</p>
+            <p class="text-lg font-bold text-slate-800 dark:text-slate-200">{{ formatBytes(cfUsage?.analytics?.totals?.bandwidth || 0) }}</p>
+          </div>
+          <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-700">
+            <p class="text-xs text-slate-500 dark:text-slate-400">{{ t('dashboard.workerRequests') }}</p>
+            <p class="text-lg font-bold text-slate-800 dark:text-slate-200">{{ cfUsage?.worker?.usage || 0 }}</p>
+          </div>
+          <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-700">
+            <p class="text-xs text-slate-500 dark:text-slate-400">{{ t('dashboard.remainingRequests') }}</p>
+            <p class="text-lg font-bold text-green-600 dark:text-green-400">{{ cfUsage?.worker?.remaining || '∞' }}</p>
+          </div>
+        </div>
+        <div v-if="cfUsage?.worker?.limit" class="mt-4">
+          <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+            <span>{{ t('dashboard.usageProgress') }}</span>
+            <span>{{ Math.round((cfUsage.worker.usage / cfUsage.worker.limit) * 100) }}%</span>
+          </div>
+          <div class="w-full h-2 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
+            <div 
+              class="h-full rounded-full transition-all duration-300"
+              :class="getUsageColor(cfUsage.worker.usage, cfUsage.worker.limit)"
+              :style="{ width: `${Math.min((cfUsage.worker.usage / cfUsage.worker.limit) * 100, 100)}%` }"
+            ></div>
+          </div>
+        </div>
+      </div>
+
       <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
         <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{{ t('dashboard.quickActions') }}</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -161,7 +206,8 @@ import { Icon } from '@iconify/vue'
 import { useDataStore } from '@/stores/data'
 import { useAuthStore } from '@/stores/auth'
 import { usePageTexts } from '@/composables/useI18n'
-import { galleryApi, userApi } from '@/api'
+import { galleryApi, userApi, settingsApi } from '@/api'
+import type { CFUsageResponse } from '@/types'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import ErrorMessage from '@/components/ErrorMessage.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -173,6 +219,8 @@ const { dashboard: dashboardTexts, t } = usePageTexts()
 const isStatsLoading = ref(false)
 const imageCount = ref(0)
 const userCount = ref(1)
+const cfUsage = ref<CFUsageResponse | null>(null)
+const isCFLoading = ref(false)
 
 const quickActions = computed(() => [
   { path: '/admin/groups', label: t('dashboard.addGroup'), icon: 'ph:folder-plus-bold', bgClass: 'bg-orange-100 dark:bg-orange-900/30', iconClass: 'text-orange-500' },
@@ -233,6 +281,33 @@ const fetchStats = async () => {
   }
 }
 
+const fetchCFUsage = async () => {
+  isCFLoading.value = true
+  try {
+    const res = await settingsApi.getCFUsage()
+    cfUsage.value = res.data
+  } catch (error) {
+    console.error('获取 Cloudflare 使用情况失败:', error)
+  } finally {
+    isCFLoading.value = false
+  }
+}
+
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+const getUsageColor = (usage: number, limit: number): string => {
+  const percentage = (usage / limit) * 100
+  if (percentage < 50) return 'bg-green-500'
+  if (percentage < 80) return 'bg-yellow-500'
+  return 'bg-red-500'
+}
+
 const handleRefresh = () => {
   dataStore.clearError()
   dataStore.refreshAll().then(fetchStats)
@@ -240,5 +315,6 @@ const handleRefresh = () => {
 
 onMounted(() => {
   dataStore.fetchAll().then(fetchStats)
+  fetchCFUsage()
 })
 </script>

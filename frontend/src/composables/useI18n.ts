@@ -109,6 +109,8 @@ const defaultTexts: Record<string, Record<string, string>> = {
     'admin.dashboard': '仪表盘',
     'admin.profile': '个人信息',
     'admin.gallery': '图库',
+    'admin.loadingImages': '加载图片中...',
+    'admin.clickUploadImage': '点击上方按钮上传图片',
     'admin.settings': '全局设置',
     'admin.publicGallery': '公共图库',
     'admin.groups': '分组管理',
@@ -275,6 +277,12 @@ const defaultTexts: Record<string, Record<string, string>> = {
     'dashboard.exportData': '导出数据',
     'dashboard.viewApi': '查看API',
     'dashboard.websites': '个网站',
+    'dashboard.cloudflareUsage': 'Cloudflare 使用情况',
+    'dashboard.totalRequests': '总请求量',
+    'dashboard.totalBandwidth': '总带宽',
+    'dashboard.workerRequests': 'Worker 请求',
+    'dashboard.remainingRequests': '剩余请求',
+    'dashboard.usageProgress': '使用进度',
     'globalSettings.title': '全局设置',
     'globalSettings.websiteTitle': '网站标题',
     'globalSettings.websiteDescription': '网站描述',
@@ -405,6 +413,8 @@ const defaultTexts: Record<string, Record<string, string>> = {
     'admin.dashboard': 'Dashboard',
     'admin.profile': 'Profile',
     'admin.gallery': 'Gallery',
+    'admin.loadingImages': 'Loading images...',
+    'admin.clickUploadImage': 'Click the button above to upload images',
     'admin.settings': 'Settings',
     'admin.publicGallery': 'Public Gallery',
     'admin.groups': 'Groups',
@@ -571,6 +581,12 @@ const defaultTexts: Record<string, Record<string, string>> = {
     'dashboard.exportData': 'Export Data',
     'dashboard.viewApi': 'View API',
     'dashboard.websites': 'websites',
+    'dashboard.cloudflareUsage': 'Cloudflare Usage',
+    'dashboard.totalRequests': 'Total Requests',
+    'dashboard.totalBandwidth': 'Total Bandwidth',
+    'dashboard.workerRequests': 'Worker Requests',
+    'dashboard.remainingRequests': 'Remaining Requests',
+    'dashboard.usageProgress': 'Usage Progress',
     'globalSettings.title': 'Global Settings',
     'globalSettings.websiteTitle': 'Website Title',
     'globalSettings.websiteDescription': 'Website Description',
@@ -621,6 +637,8 @@ export interface PageTexts {
     personalization?: string
     groups?: string
     gallery?: string
+    loadingImages?: string
+    clickUploadImage?: string
     settings?: string
     users?: string
     api?: string
@@ -724,6 +742,12 @@ export interface PageTexts {
     exportData?: string
     viewApi?: string
     websites?: string
+    cloudflareUsage?: string
+    totalRequests?: string
+    totalBandwidth?: string
+    workerRequests?: string
+    remainingRequests?: string
+    usageProgress?: string
   }
   globalSettings: {
     title?: string
@@ -867,6 +891,8 @@ export const usePageTexts = () => {
         personalization: getText('admin.personalization'),
         groups: getText('admin.groups'),
         gallery: getText('admin.gallery'),
+        loadingImages: getText('admin.loadingImages'),
+        clickUploadImage: getText('admin.clickUploadImage'),
         settings: getText('admin.settings'),
         users: getText('admin.users'),
         api: getText('admin.api'),
@@ -1061,7 +1087,13 @@ export const usePageTexts = () => {
         changeTheme: getText('dashboard.changeTheme'),
         exportData: getText('dashboard.exportData'),
         viewApi: getText('dashboard.viewApi'),
-        websites: getText('dashboard.websites')
+        websites: getText('dashboard.websites'),
+        cloudflareUsage: getText('dashboard.cloudflareUsage'),
+        totalRequests: getText('dashboard.totalRequests'),
+        totalBandwidth: getText('dashboard.totalBandwidth'),
+        workerRequests: getText('dashboard.workerRequests'),
+        remainingRequests: getText('dashboard.remainingRequests'),
+        usageProgress: getText('dashboard.usageProgress')
       },
       globalSettings: {
         title: getText('globalSettings.title'),

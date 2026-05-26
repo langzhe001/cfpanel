@@ -1,6 +1,6 @@
 // 设置相关 API
 
-import type { APIResponse, Settings } from '@/types'
+import type { APIResponse, Settings, CFUsageResponse } from '@/types'
 import { api, clearCache, getCached, setCached } from './client'
 
 export const settingsApi = {
@@ -19,5 +19,9 @@ export const settingsApi = {
   update: (data: Partial<Settings>) => {
     clearCache('settings')
     return api.put('/settings', data)
+  },
+
+  getCFUsage: async () => {
+    return api.get<APIResponse<CFUsageResponse>>('/cf-usage')
   }
 }

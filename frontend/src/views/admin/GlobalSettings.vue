@@ -10,18 +10,7 @@
 
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
       <div class="p-6 border-b border-slate-200 dark:border-slate-700">
-        <div class="flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ pageTitle }}</h3>
-          <div class="flex items-center gap-3">
-            <label class="text-sm font-medium text-slate-600 dark:text-slate-400">{{ languageLabel }}:</label>
-            <div class="w-32">
-              <CustomSelect
-                :options="languageOptions"
-                v-model="currentLanguage"
-              />
-            </div>
-          </div>
-        </div>
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200">{{ pageTitle }}</h3>
       </div>
       <div class="p-6 space-y-6">
         <!-- 中文表单 -->
@@ -55,57 +44,6 @@
               :disabled="isLoading"
               :placeholder="footerTextPlaceholder"
             />
-          </div>
-
-          <div class="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-            <h4 class="font-medium text-slate-700 dark:text-slate-300 mb-4">{{ pageTextsLabel }}</h4>
-            <div class="space-y-3 text-sm">
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ homeTitleLabel }}:</span>
-                <input
-                  v-model="languageForms['zh-CN'].pageTexts.home.title"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="homeTitlePlaceholder"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ homeWelcomeLabel }}:</span>
-                <input
-                  v-model="languageForms['zh-CN'].pageTexts.home.welcome"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="homeWelcomePlaceholder"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ navHomeLabel }}:</span>
-                <input
-                  v-model="languageForms['zh-CN'].pageTexts.nav.home"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="navHomePlaceholder"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ navAdminLabel }}:</span>
-                <input
-                  v-model="languageForms['zh-CN'].pageTexts.nav.admin"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="navAdminPlaceholder"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ loginTitleLabel }}:</span>
-                <input
-                  v-model="languageForms['zh-CN'].pageTexts.login.title"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="loginTitlePlaceholder"
-                />
-              </div>
-            </div>
           </div>
         </div>
 
@@ -141,57 +79,6 @@
               :placeholder="footerTextPlaceholder"
             />
           </div>
-
-          <div class="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-            <h4 class="font-medium text-slate-700 dark:text-slate-300 mb-4">{{ pageTextsLabel }}</h4>
-            <div class="space-y-3 text-sm">
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ homeTitleLabel }}:</span>
-                <input
-                  v-model="languageForms['en-US'].pageTexts.home.title"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="homeTitlePlaceholder"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ homeWelcomeLabel }}:</span>
-                <input
-                  v-model="languageForms['en-US'].pageTexts.home.welcome"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="homeWelcomePlaceholder"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ navHomeLabel }}:</span>
-                <input
-                  v-model="languageForms['en-US'].pageTexts.nav.home"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="navHomePlaceholder"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ navAdminLabel }}:</span>
-                <input
-                  v-model="languageForms['en-US'].pageTexts.nav.admin"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="navAdminPlaceholder"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ loginTitleLabel }}:</span>
-                <input
-                  v-model="languageForms['en-US'].pageTexts.login.title"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="loginTitlePlaceholder"
-                />
-              </div>
-            </div>
-          </div>
         </div>
 
         <!-- 日文表单 -->
@@ -225,57 +112,6 @@
               :disabled="isLoading"
               :placeholder="footerTextPlaceholder"
             />
-          </div>
-
-          <div class="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-            <h4 class="font-medium text-slate-700 dark:text-slate-300 mb-4">{{ pageTextsLabel }}</h4>
-            <div class="space-y-3 text-sm">
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ homeTitleLabel }}:</span>
-                <input
-                  v-model="languageForms['ja-JP'].pageTexts.home.title"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="homeTitlePlaceholder"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ homeWelcomeLabel }}:</span>
-                <input
-                  v-model="languageForms['ja-JP'].pageTexts.home.welcome"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="homeWelcomePlaceholder"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ navHomeLabel }}:</span>
-                <input
-                  v-model="languageForms['ja-JP'].pageTexts.nav.home"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="navHomePlaceholder"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ navAdminLabel }}:</span>
-                <input
-                  v-model="languageForms['ja-JP'].pageTexts.nav.admin"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="navAdminPlaceholder"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ loginTitleLabel }}:</span>
-                <input
-                  v-model="languageForms['ja-JP'].pageTexts.login.title"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="loginTitlePlaceholder"
-                />
-              </div>
-            </div>
           </div>
         </div>
 
@@ -311,57 +147,6 @@
               :placeholder="footerTextPlaceholder"
             />
           </div>
-
-          <div class="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-            <h4 class="font-medium text-slate-700 dark:text-slate-300 mb-4">{{ pageTextsLabel }}</h4>
-            <div class="space-y-3 text-sm">
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ homeTitleLabel }}:</span>
-                <input
-                  v-model="languageForms['ko-KR'].pageTexts.home.title"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="homeTitlePlaceholder"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ homeWelcomeLabel }}:</span>
-                <input
-                  v-model="languageForms['ko-KR'].pageTexts.home.welcome"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="homeWelcomePlaceholder"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ navHomeLabel }}:</span>
-                <input
-                  v-model="languageForms['ko-KR'].pageTexts.nav.home"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="navHomePlaceholder"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ navAdminLabel }}:</span>
-                <input
-                  v-model="languageForms['ko-KR'].pageTexts.nav.admin"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="navAdminPlaceholder"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 dark:text-slate-400 w-32">{{ loginTitleLabel }}:</span>
-                <input
-                  v-model="languageForms['ko-KR'].pageTexts.login.title"
-                  type="text"
-                  class="flex-1 px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs"
-                  :placeholder="loginTitlePlaceholder"
-                />
-              </div>
-            </div>
-          </div>
         </div>
 
         <div class="flex justify-end gap-3">
@@ -393,17 +178,32 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted, watch } from 'vue'
+import { reactive, ref, computed, onMounted, onUnmounted } from 'vue'
 import { useGlobalSettingsStore } from '@/stores/globalSettings'
 import { globalSettingsApi } from '@/api'
 import { usePageTexts } from '@/composables/useI18n'
 import { eventBus, EVENTS, useCrossFrameSync } from '@/composables/useEventBus'
 import ErrorMessage from '@/components/ErrorMessage.vue'
-import CustomSelect from '@/components/CustomSelect.vue'
 
 const globalSettingsStore = useGlobalSettingsStore()
 const { t } = usePageTexts()
-const { broadcastChange } = useCrossFrameSync()
+const { broadcastChange, listenForChanges } = useCrossFrameSync()
+
+// 监听跨窗口/标签页的设置变更
+let unsubscribe: (() => void) | null = null
+
+// 同页面事件监听回调
+const handleSettingsChanged = (newSettings: any) => {
+  console.log('[GlobalSettings] 收到设置变更通知，更新表单数据')
+  if (newSettings && newSettings.language) {
+    const lang = newSettings.language as keyof typeof languageForms
+    if (languageForms[lang]) {
+      languageForms[lang].websiteTitle = newSettings.websiteTitle || ''
+      languageForms[lang].websiteDescription = newSettings.websiteDescription || ''
+      languageForms[lang].footerText = newSettings.footerText || ''
+    }
+  }
+}
 
 const isLoading = ref(false)
 const error = ref('')
@@ -414,52 +214,26 @@ const languageForms = reactive({
   'zh-CN': {
     websiteTitle: '',
     websiteDescription: '',
-    footerText: '',
-    pageTexts: {
-      home: { title: '', welcome: '' },
-      nav: { home: '', admin: '' },
-      login: { title: '' }
-    }
+    footerText: ''
   },
   'en-US': {
     websiteTitle: '',
     websiteDescription: '',
-    footerText: '',
-    pageTexts: {
-      home: { title: '', welcome: '' },
-      nav: { home: '', admin: '' },
-      login: { title: '' }
-    }
+    footerText: ''
   },
   'ja-JP': {
     websiteTitle: '',
     websiteDescription: '',
-    footerText: '',
-    pageTexts: {
-      home: { title: '', welcome: '' },
-      nav: { home: '', admin: '' },
-      login: { title: '' }
-    }
+    footerText: ''
   },
   'ko-KR': {
     websiteTitle: '',
     websiteDescription: '',
-    footerText: '',
-    pageTexts: {
-      home: { title: '', welcome: '' },
-      nav: { home: '', admin: '' },
-      login: { title: '' }
-    }
+    footerText: ''
   }
 })
 
 const currentLanguage = ref('zh-CN')
-const languageOptions = computed(() => {
-  return configuredLanguages.value.map(lang => ({
-    value: lang.code,
-    label: lang.name
-  }))
-})
 
 const configuredLanguages = ref<Array<{ code: string; name: string }>>([
   { code: 'zh-CN', name: '中文 (Chinese)' },
@@ -468,8 +242,6 @@ const configuredLanguages = ref<Array<{ code: string; name: string }>>([
   { code: 'ko-KR', name: '한국어 (Korean)' }
 ])
 
-// 界面翻译保持固定
-const languageLabel = computed(() => t('globalSettings.language'))
 const pageTitle = computed(() => t('admin.settings'))
 const websiteTitleLabel = computed(() => t('globalSettings.websiteTitle'))
 const websiteTitlePlaceholder = computed(() => t('globalSettings.websiteTitlePlaceholder'))
@@ -477,44 +249,9 @@ const websiteDescriptionLabel = computed(() => t('globalSettings.websiteDescript
 const websiteDescriptionPlaceholder = computed(() => t('globalSettings.websiteDescriptionPlaceholder'))
 const footerTextLabel = computed(() => t('globalSettings.footerText'))
 const footerTextPlaceholder = computed(() => t('globalSettings.footerTextPlaceholder'))
-const pageTextsLabel = computed(() => t('globalSettings.pageTexts'))
-const homeTitleLabel = computed(() => t('home.title'))
-const homeTitlePlaceholder = computed(() => t('home.title'))
-const homeWelcomeLabel = computed(() => t('home.welcome'))
-const homeWelcomePlaceholder = computed(() => t('home.welcome'))
-const navHomeLabel = computed(() => t('nav.home'))
-const navHomePlaceholder = computed(() => t('nav.home'))
-const navAdminLabel = computed(() => t('nav.admin'))
-const navAdminPlaceholder = computed(() => t('nav.admin'))
-const loginTitleLabel = computed(() => t('login.title'))
-const loginTitlePlaceholder = computed(() => t('login.title'))
 const saveButtonText = computed(() => t('common.save'))
 const resetButtonText = computed(() => t('common.reset'))
 const savingText = computed(() => t('common.saving'))
-
-const loadConfiguredLanguages = async () => {
-  try {
-    const res = await globalSettingsApi.getAll()
-    if (res.data && res.data.length > 0) {
-      configuredLanguages.value = res.data.map(lang => ({
-        code: lang.language,
-        name: getLanguageDisplayName(lang.language)
-      }))
-    }
-  } catch (err) {
-    console.error('加载语言列表失败:', err)
-  }
-}
-
-const getLanguageDisplayName = (code: string) => {
-  const names: Record<string, string> = {
-    'zh-CN': '中文 (Chinese)',
-    'en-US': 'English (英文)',
-    'ja-JP': '日本語 (Japanese)',
-    'ko-KR': '한국어 (Korean)'
-  }
-  return names[code] || code
-}
 
 const loadAllLanguageSettings = async () => {
   isLoading.value = true
@@ -527,12 +264,7 @@ const loadAllLanguageSettings = async () => {
           languageForms[lang.code as keyof typeof languageForms] = {
             websiteTitle: res.data.websiteTitle || '',
             websiteDescription: res.data.websiteDescription || '',
-            footerText: res.data.footerText || '',
-            pageTexts: {
-              home: res.data.pageTexts?.home || { title: '', welcome: '' },
-              nav: res.data.pageTexts?.nav || { home: '', admin: '' },
-              login: res.data.pageTexts?.login || { title: '' }
-            }
+            footerText: res.data.footerText || ''
           }
         }
       } catch (err) {
@@ -544,16 +276,7 @@ const loadAllLanguageSettings = async () => {
   }
 }
 
-const onLanguageChange = async () => {
-  // 语言切换时自动保存设置
-  console.log('切换到语言:', currentLanguage.value)
-  await saveSettings()
-}
 
-// 监听语言变化
-watch(currentLanguage, () => {
-  onLanguageChange()
-})
 
 const saveSettings = async () => {
   isLoading.value = true
@@ -562,22 +285,14 @@ const saveSettings = async () => {
   try {
     // 保存当前选择的语言的设置
     const formData = languageForms[currentLanguage.value as keyof typeof languageForms]
-    const res = await globalSettingsApi.update({
+    
+    // 使用 store 的 updateSettings 方法来更新设置（与其他设置保持一致）
+    await globalSettingsStore.updateSettings({
       language: currentLanguage.value,
       websiteTitle: formData.websiteTitle,
       websiteDescription: formData.websiteDescription,
-      footerText: formData.footerText,
-      pageTexts: formData.pageTexts
+      footerText: formData.footerText
     })
-
-    // 使用 API 返回的数据更新 store
-    globalSettingsStore.settings = res.data
-
-    // 触发事件通知其他组件刷新翻译
-    eventBus.emit(EVENTS.GLOBAL_SETTINGS_CHANGED, res.data)
-
-    // 跨窗口广播变更
-    broadcastChange(EVENTS.GLOBAL_SETTINGS_CHANGED, res.data)
 
     error.value = t('globalSettings.saveSuccess', '设置保存成功！')
     messageType.value = 'success'
@@ -596,9 +311,6 @@ const resetSettings = () => {
     formData.websiteTitle = 'SunPanel'
     formData.websiteDescription = ''
     formData.footerText = '© 2024 SunPanel. All rights reserved.'
-    formData.pageTexts.home = { title: '首页', welcome: '欢迎使用 SunPanel' }
-    formData.pageTexts.nav = { home: '首页', admin: '管理' }
-    formData.pageTexts.login = { title: '登录' }
     saveSettings()
   }
 }
@@ -611,7 +323,23 @@ onMounted(async () => {
   await globalSettingsStore.loadSettings(currentLanguage.value, true)
 
   // 然后加载所有语言的表单数据
-  await loadConfiguredLanguages()
   await loadAllLanguageSettings()
+
+  // 监听同页面内的设置变更事件
+  eventBus.on(EVENTS.GLOBAL_SETTINGS_CHANGED, handleSettingsChanged)
+
+  // 监听跨窗口/标签页的设置变更
+  unsubscribe = listenForChanges(EVENTS.GLOBAL_SETTINGS_CHANGED, handleSettingsChanged)
+})
+
+onUnmounted(() => {
+  // 取消同页面事件监听
+  eventBus.off(EVENTS.GLOBAL_SETTINGS_CHANGED, handleSettingsChanged)
+  
+  // 取消跨窗口事件监听
+  if (unsubscribe) {
+    unsubscribe()
+    unsubscribe = null
+  }
 })
 </script>

@@ -101,3 +101,30 @@ export interface LoginResponse {
   csrfToken?: string
   user: User
 }
+
+export interface CFUsageResponse {
+  configured: boolean
+  message?: string
+  error?: string
+  status?: number
+  analytics?: {
+    totals: {
+      requests: number
+      bandwidth: number
+      threats: number
+      pageviews: number
+    }
+    timeseries?: Array<{
+      requests: number
+      bandwidth: number
+      threats: number
+      pageviews: number
+      timestamp: string
+    }>
+  }
+  worker?: {
+    usage: number
+    limit: number
+    remaining: number
+  }
+}
