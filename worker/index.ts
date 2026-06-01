@@ -1,5 +1,5 @@
 /**
- * SunPanel Cloudflare Workers API
+ * CFpanel Cloudflare Workers API
  * 使用 D1 数据库存储元数据，KV 存储图片数据
  */
 
@@ -1087,7 +1087,6 @@ interface Settings {
 
 interface GlobalSettings {
   id: number
-  language: string
   websiteTitle: string
   websiteDescription: string
   pageTexts: Record<string, any>
@@ -1452,44 +1451,24 @@ const d1Settings = {
 }
 
 const d1GlobalSettings = {
-  get: async (env: Env, language: string = 'zh-CN'): Promise<GlobalSettings | null> => {
+  get: async (env: Env): Promise<GlobalSettings | null> => {
     const result = await env.SUNPANEL_DB.prepare(`
-      SELECT id, language, website_title, website_description, page_texts, footer_text, created_at, updated_at
-      FROM global_settings WHERE language = ?
-    `).bind(language).first()
+      SELECT id, website_title, website_description, page_texts, footer_text, created_at, updated_at
+      FROM global_settings LIMIT 1
+    `).first()
 
     if (!result) {
-      const fallback = await env.SUNPANEL_DB.prepare(`
-        SELECT id, language, website_title, website_description, page_texts, footer_text, created_at, updated_at
-        FROM global_settings WHERE language = 'zh-CN'
-      `).first()
-
-      if (!fallback) {
-        console.log('[d1GlobalSettings.get] 没有找到全局设置，尝试创建默认设置')
-        return d1GlobalSettings.create(env, {
-          language: 'zh-CN',
-          websiteTitle: 'SunPanel',
-          websiteDescription: '',
-          pageTexts: {},
-          footerText: ''
-        })
-      }
-
-      return {
-        id: fallback.id as number,
-        language: fallback.language as string,
-        websiteTitle: fallback.website_title as string,
-        websiteDescription: (fallback as any).website_description as string || '',
-        pageTexts: JSON.parse((fallback as any).page_texts as string || '{}'),
-        footerText: (fallback as any).footer_text as string || '',
-        createdAt: fallback.created_at as string,
-        updatedAt: fallback.updated_at as string
-      }
+      console.log('[d1GlobalSettings.get] 没有找到全局设置，尝试创建默认设置')
+      return d1GlobalSettings.create(env, {
+        websiteTitle: 'CFpanel',
+        websiteDescription: '',
+        pageTexts: {},
+        footerText: ''
+      })
     }
 
     return {
       id: result.id as number,
-      language: result.language as string,
       websiteTitle: result.website_title as string,
       websiteDescription: (result as any).website_description as string || '',
       pageTexts: JSON.parse((result as any).page_texts as string || '{}'),
@@ -1501,13 +1480,12 @@ const d1GlobalSettings = {
 
   getAll: async (env: Env): Promise<GlobalSettings[]> => {
     const result = await env.SUNPANEL_DB.prepare(`
-      SELECT id, language, website_title, website_description, page_texts, footer_text, created_at, updated_at
+      SELECT id, website_title, website_description, page_texts, footer_text, created_at, updated_at
       FROM global_settings ORDER BY id ASC
     `).all()
 
     return (result.results || []).map((row: any) => ({
       id: row.id,
-      language: row.language,
       websiteTitle: row.website_title,
       websiteDescription: row.website_description || '',
       pageTexts: JSON.parse(row.page_texts || '{}'),
@@ -1517,19 +1495,17 @@ const d1GlobalSettings = {
     }))
   },
 
-  update: async (env: Env, language: string, data: Partial<{
+  update: async (env: Env, data: Partial<{
     websiteTitle: string
     websiteDescription: string
     pageTexts: Record<string, any>
     footerText: string
   }>): Promise<GlobalSettings | null> => {
-    const existing = await d1GlobalSettings.get(env, language)
+    const existing = await d1GlobalSettings.get(env)
     
-    // 如果记录不存在，创建新记录
     if (!existing) {
       return await d1GlobalSettings.create(env, {
-        language,
-        websiteTitle: data.websiteTitle || 'SunPanel',
+        websiteTitle: data.websiteTitle || 'CFpanel',
         websiteDescription: data.websiteDescription || '',
         pageTexts: data.pageTexts || {},
         footerText: data.footerText || ''
@@ -1547,21 +1523,20 @@ const d1GlobalSettings = {
     await env.SUNPANEL_DB.prepare(`
       UPDATE global_settings SET 
         website_title = ?, website_description = ?, page_texts = ?, footer_text = ?, updated_at = ?
-      WHERE language = ?
+      WHERE id = ?
     `).bind(
       merged.websiteTitle,
       merged.websiteDescription,
       merged.pageTexts,
       merged.footerText,
       now,
-      language
+      existing.id
     ).run()
 
-    return d1GlobalSettings.get(env, language)
+    return d1GlobalSettings.get(env)
   },
 
   create: async (env: Env, data: {
-    language: string
     websiteTitle: string
     websiteDescription?: string
     pageTexts?: Record<string, any>
@@ -1570,10 +1545,9 @@ const d1GlobalSettings = {
     const now = new Date().toISOString()
 
     const result = await env.SUNPANEL_DB.prepare(`
-      INSERT INTO global_settings (language, website_title, website_description, page_texts, footer_text, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO global_settings (website_title, website_description, page_texts, footer_text, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
     `).bind(
-      data.language,
       data.websiteTitle,
       data.websiteDescription || '',
       JSON.stringify(data.pageTexts || {}),
@@ -1586,7 +1560,6 @@ const d1GlobalSettings = {
     
     return {
       id: newId,
-      language: data.language,
       websiteTitle: data.websiteTitle,
       websiteDescription: data.websiteDescription || '',
       pageTexts: data.pageTexts || {},
@@ -2371,16 +2344,11 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
       }
 
       if (path === '/global-settings' && method === 'GET') {
-        const url = new URL(request.url)
-        const language = 'zh-CN'
-
-        let globalSettings = await d1GlobalSettings.get(env, language)
+        let globalSettings = await d1GlobalSettings.get(env)
         
         if (!globalSettings) {
-          //console.log(`[SSE] 全局设置不存在，创建默认设置 - 语言: ${language}`)
           globalSettings = await d1GlobalSettings.create(env, {
-            language,
-            websiteTitle: 'SunPanel',
+            websiteTitle: 'CFpanel',
             websiteDescription: '',
             pageTexts: {},
             footerText: ''
@@ -2388,7 +2356,6 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         }
 
         return jsonResponse({
-          language: globalSettings.language,
           websiteTitle: globalSettings.websiteTitle,
           websiteDescription: globalSettings.websiteDescription,
           pageTexts: globalSettings.pageTexts,
@@ -2408,19 +2375,12 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         if (!csrfResult.success) return csrfResult.response!
 
         const body = await request.json()
-        const validation = GlobalSettingsSchema.safeParse(body)
-        if (!validation.success) {
-          const errorMessages = validation.error?.issues?.map(e => e.message) || []
-          return errorResponse('输入验证失败: ' + errorMessages.join(', '), 400, corsHeaders, requestId)
-        }
 
-        const { language, websiteTitle, websiteDescription, pageTexts, footerText } = validation.data
-
-        const updated = await d1GlobalSettings.update(env, 'zh-CN', {
-          websiteTitle,
-          websiteDescription,
-          pageTexts,
-          footerText
+        const updated = await d1GlobalSettings.update(env, {
+          websiteTitle: body.websiteTitle,
+          websiteDescription: body.websiteDescription,
+          pageTexts: body.pageTexts,
+          footerText: body.footerText
         })
 
         if (!updated) {
@@ -2428,7 +2388,6 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         }
 
         const globalSettingsData = {
-          language: updated.language,
           websiteTitle: updated.websiteTitle,
           websiteDescription: updated.websiteDescription,
           pageTexts: updated.pageTexts,
@@ -2440,44 +2399,6 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         return jsonResponse(globalSettingsData, 200, corsHeaders, requestId)
       }
 
-      if (path === '/global-settings' && method === 'POST') {
-        const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
-
-        if (authResult.session!.role !== 'admin') {
-          return errorResponse('Admin access required', 403, corsHeaders, requestId)
-        }
-
-        const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
-        if (!csrfResult.success) return csrfResult.response!
-
-        const body = await request.json()
-        const validation = GlobalSettingsSchema.safeParse(body)
-        if (!validation.success) {
-          const errorMessages = validation.error?.issues?.map(e => e.message) || []
-          return errorResponse('输入验证失败: ' + errorMessages.join(', '), 400, corsHeaders, requestId)
-        }
-
-        const { language, websiteTitle, websiteDescription, pageTexts, footerText } = validation.data
-
-        const created = await d1GlobalSettings.create(env, {
-          language,
-          websiteTitle: websiteTitle || 'SunPanel',
-          websiteDescription,
-          pageTexts,
-          footerText
-        })
-
-        return jsonResponse({
-          language: created.language,
-          websiteTitle: created.websiteTitle,
-          websiteDescription: created.websiteDescription,
-          pageTexts: created.pageTexts,
-          footerText: created.footerText
-        }, 201, corsHeaders, requestId)
-      }
-
-      
       if (path === '/global-settings/all' && method === 'GET') {
         const authResult = await authenticate(request, env, corsHeaders)
         if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
@@ -2489,7 +2410,6 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
         const allSettings = await d1GlobalSettings.getAll(env)
 
         return jsonResponse(allSettings.map(s => ({
-          language: s.language,
           websiteTitle: s.websiteTitle,
           websiteDescription: s.websiteDescription,
           pageTexts: s.pageTexts,
@@ -2497,30 +2417,6 @@ await broadcastToUserOld(authResult.session!.user_id, 'data_changed', { type: 'g
           createdAt: s.createdAt,
           updatedAt: s.updatedAt
         })), 200, corsHeaders, requestId)
-      }
-
-      if (path === '/global-settings' && method === 'DELETE') {
-        const authResult = await authenticate(request, env, corsHeaders)
-        if (!authResult.success) return authResult.response || errorResponse('认证失败', 401, corsHeaders, requestId)
-
-        if (authResult.session!.role !== 'admin') {
-          return errorResponse('Admin access required', 403, corsHeaders, requestId)
-        }
-
-        const csrfResult = await validateCsrf(request, env, corsHeaders, authResult.session!, requestId)
-        if (!csrfResult.success) return csrfResult.response!
-
-        const url = new URL(request.url)
-        const language = url.searchParams.get('language')
-
-        if (!language) {
-          return errorResponse('Language is required', 400, corsHeaders, requestId)
-        }
-
-        await env.SUNPANEL_DB.prepare(`DELETE FROM global_settings WHERE language = ?`)
-          .bind(language).run()
-
-        return jsonResponse({ success: true, message: `Settings for ${language} deleted` }, 200, corsHeaders, requestId)
       }
 
       if (path === '/export' && method === 'GET') {

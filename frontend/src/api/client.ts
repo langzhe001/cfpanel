@@ -245,7 +245,7 @@ interface CacheEntry<T> {
   timestamp: number
 }
 
-const MEMORY_CACHE_KEY = '__sunpanel_cache'
+const MEMORY_CACHE_KEY = '__cfpanel_cache'
 const cache = new Map<string, CacheEntry<any>>()
 
 const loadFromLocalStorage = (): void => {

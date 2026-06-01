@@ -1,5 +1,5 @@
 /**
- * SunPanel Cloudflare Workers API
+ * CFpanel Cloudflare Workers API
  * 使用 D1 数据库存储元数据，KV 存储图片数据
  */
 

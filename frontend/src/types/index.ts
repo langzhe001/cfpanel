@@ -61,7 +61,6 @@ export interface Settings {
 }
 
 export interface GlobalSettings {
-  language: string
   websiteTitle: string
   websiteDescription: string
   pageTexts: Record<string, Record<string, string>>

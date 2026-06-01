@@ -5,7 +5,7 @@ import { globalSettingsApi } from '@/api'
 import { eventBus, EVENTS, useCrossFrameSync } from '@/composables/useEventBus'
 
 const isBrowser = typeof window !== 'undefined'
-const GLOBAL_SETTINGS_KEY = 'sunpanel_global_settings'
+const GLOBAL_SETTINGS_KEY = 'cfpanel_global_settings'
 
 interface CachedGlobalSettings {
   settings: GlobalSettings
@@ -13,8 +13,7 @@ interface CachedGlobalSettings {
 }
 
 const DEFAULT_SETTINGS: GlobalSettings = {
-  language: 'zh-CN',
-  websiteTitle: 'SunPanel',
+  websiteTitle: 'CFpanel',
   websiteDescription: '',
   pageTexts: {},
   footerText: ''
@@ -22,10 +21,12 @@ const DEFAULT_SETTINGS: GlobalSettings = {
 
 export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   const settings = ref<GlobalSettings>({ ...DEFAULT_SETTINGS })
-  const currentLanguage = ref('zh-CN')
   const isLoaded = ref(false)
   const lastFetchTime = ref<number>(0)
   const CACHE_DURATION = 30 * 60 * 1000 // 30分钟
+  const isFetching = ref(false)
+  const hasFetched = ref(false)
+  let pendingResolve: ((value: void) => void) | null = null
 
   /**
    * 清除所有全局设置相关的缓存
@@ -33,34 +34,19 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   const clearAllCache = () => {
     if (!isBrowser) return
     try {
-      // 清除主缓存
       localStorage.removeItem(GLOBAL_SETTINGS_KEY)
       
-      // 清除所有相关的API缓存（如果有）
       for (let i = localStorage.length - 1; i >= 0; i--) {
         const key = localStorage.key(i)
-        if (key && (key.includes('global_settings') || key.includes('sunpanel_settings'))) {
+        if (key && (key.includes('global_settings') || key.includes('cfpanel_settings'))) {
           localStorage.removeItem(key)
         }
       }
       
+      hasFetched.value = false
       console.log('[globalSettingsStore] 所有缓存已清除')
     } catch (e) {
       console.warn('[globalSettingsStore] 清除缓存失败:', e)
-    }
-  }
-
-  /**
-   * 清除指定语言的缓存
-   */
-  const clearLanguageCache = (language: string) => {
-    if (!isBrowser) return
-    try {
-      // 清除主缓存（因为主缓存也可能是该语言）
-      localStorage.removeItem(GLOBAL_SETTINGS_KEY)
-      console.log(`[globalSettingsStore] ${language} 语言缓存已清除`)
-    } catch (e) {
-      console.warn('[globalSettingsStore] 清除语言缓存失败:', e)
     }
   }
 
@@ -75,8 +61,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
         const parsed: CachedGlobalSettings = JSON.parse(cached)
         if (Date.now() - parsed.timestamp < CACHE_DURATION) {
           settings.value = parsed.settings
-          currentLanguage.value = parsed.settings.language
-          console.log('[globalSettingsStore] 从缓存加载设置:', parsed.settings.language)
+          console.log('[globalSettingsStore] 从缓存加载设置')
           return true
         }
       }
@@ -106,41 +91,46 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   /**
    * 加载全局设置
    */
-  const loadSettings = async (language?: string, forceRefresh = false) => {
-    const targetLanguage = language || currentLanguage.value
-
-    // 如果不是强制刷新，先尝试从缓存加载
-    if (!forceRefresh && loadFromCache() && !language) {
+  const loadSettings = async (forceRefresh = false) => {
+    if (!forceRefresh && loadFromCache()) {
       isLoaded.value = true
       return
     }
 
+    if (!forceRefresh && hasFetched.value) {
+      isLoaded.value = true
+      return
+    }
+
+    if (isFetching.value) {
+      return new Promise<void>((resolve) => {
+        pendingResolve = resolve
+      })
+    }
+
+    isFetching.value = true
+
     try {
-      console.log(`[globalSettingsStore] 从 API 加载设置: ${targetLanguage}`)
-      const res = await globalSettingsApi.get(targetLanguage)
+      console.log('[globalSettingsStore] 从 API 加载设置')
+      const res = await globalSettingsApi.get(forceRefresh)
       settings.value = res.data
-      currentLanguage.value = targetLanguage
-      saveToCache() // 立即保存到缓存
+      saveToCache()
+      hasFetched.value = true
     } catch (err: any) {
       console.warn('[globalSettingsStore] 加载设置失败:', err.message)
-      if (!language && settings.value.websiteTitle === DEFAULT_SETTINGS.websiteTitle) {
+      if (settings.value.websiteTitle === DEFAULT_SETTINGS.websiteTitle) {
         settings.value = { ...DEFAULT_SETTINGS }
       }
     } finally {
+      isFetching.value = false
       isLoaded.value = true
       lastFetchTime.value = Date.now()
+      
+      if (pendingResolve) {
+        pendingResolve()
+        pendingResolve = null
+      }
     }
-  }
-
-  /**
-   * 根据用户语言加载设置
-   */
-  const loadSettingsByUserLanguage = async (userLanguage: string) => {
-    if (!userLanguage || userLanguage === currentLanguage.value) return
-    
-    console.log(`[globalSettingsStore] 用户语言设置: ${userLanguage}`)
-    currentLanguage.value = userLanguage
-    await loadSettings(userLanguage, true) // 强制刷新
   }
 
   /**
@@ -150,25 +140,16 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     try {
       console.log('[globalSettingsStore] 更新设置:', data)
 
-      // 先清除当前缓存，确保获取最新数据
-      clearLanguageCache(currentLanguage.value)
+      clearAllCache()
 
-      // 调用API更新
-      const res = await globalSettingsApi.update({
-        ...data,
-        language: currentLanguage.value
-      })
+      const res = await globalSettingsApi.update(data)
 
-      // 更新本地状态
       settings.value = res.data
 
-      // 立即保存到缓存
       saveToCache()
 
-      // 触发事件通知其他组件刷新翻译（同页面）
       eventBus.emit(EVENTS.GLOBAL_SETTINGS_CHANGED, res.data)
 
-      // 跨 iframe 广播变更（通知父页面/其他 iframe）
       const { broadcastChange } = useCrossFrameSync()
       broadcastChange(EVENTS.GLOBAL_SETTINGS_CHANGED, res.data)
 
@@ -178,21 +159,6 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
       console.error('[globalSettingsStore] 更新设置失败:', err.message)
       throw err
     }
-  }
-
-  /**
-   * 设置语言（刷新缓存）
-   */
-  const setLanguage = async (language: string) => {
-    if (language === currentLanguage.value) return
-    
-    console.log(`[globalSettingsStore] 切换语言: ${language}`)
-    
-    // 清除旧语言缓存
-    clearLanguageCache(currentLanguage.value)
-    
-    currentLanguage.value = language
-    await loadSettings(language, true) // 强制刷新
   }
 
   /**
@@ -214,7 +180,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   }
 
   // Computed properties
-  const websiteTitle = computed(() => settings.value?.websiteTitle || 'SunPanel')
+  const websiteTitle = computed(() => settings.value?.websiteTitle || 'CFpanel')
   const websiteDescription = computed(() => settings.value?.websiteDescription || '')
   const footerText = computed(() => settings.value?.footerText || '')
   const pageTexts = computed(() => settings.value?.pageTexts || {})
@@ -229,7 +195,6 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
   return {
     settings,
-    currentLanguage,
     isLoaded,
     lastFetchTime,
     websiteTitle,
@@ -237,12 +202,9 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     footerText,
     pageTexts,
     loadSettings,
-    loadSettingsByUserLanguage,
     updateSettings,
-    setLanguage,
     getText,
     clearAllCache,
-    clearLanguageCache,
     saveToCache
   }
 })

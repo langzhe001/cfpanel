@@ -397,66 +397,102 @@ const isInitializing = ref(false)
 
 const { connect: connectSSE, onMessage: onSSEMessage, disconnect: disconnectSSE, on: onSSEEvent } = useSSE()
 
-// 页面初始化函数 - 获取所有需要的数据
-const initializePage = async () => {
-  console.log('[Home] 开始页面初始化...')
-  isInitializing.value = true
+const initializeSettings = async () => {
+  console.log('[Home] 开始初始化设置...')
   
-  try {
-    // 加载搜索引擎设置
-    const savedSearchEngine = localStorage.getItem('searchEngine')
-    const savedSearchEngineId = localStorage.getItem('searchEngineId')
-    
-    if (savedSearchEngine) {
-      currentSearchEngine.value = savedSearchEngine
-    } else if (settingsStore.settings.searchEngine) {
-      currentSearchEngine.value = settingsStore.settings.searchEngine
-    }
-    
-    if (savedSearchEngineId) {
-      currentSearchEngineId.value = parseInt(savedSearchEngineId)
-    } else {
-      // 根据 URL 计算 ID
-      const engineIndex = searchEngines.findIndex(e => e.url === currentSearchEngine.value)
-      currentSearchEngineId.value = engineIndex >= 0 ? engineIndex : 0
-    }
-    
-    // 加载内外网模式设置
-    const savedInternalMode = localStorage.getItem('isInternalMode')
-    if (savedInternalMode) {
-      isInternalMode.value = savedInternalMode === 'true'
-    }
-    
-    // 1. 首先加载个人设置（包含主题、壁纸、搜索栏等）
-    console.log('[Home] 1. 加载个人设置...')
-    await settingsStore.loadSettings()
+  // 加载搜索引擎设置
+  const savedSearchEngine = localStorage.getItem('searchEngine')
+  const savedSearchEngineId = localStorage.getItem('searchEngineId')
+  
+  if (savedSearchEngine) {
+    currentSearchEngine.value = savedSearchEngine
+  } else if (settingsStore.settings.searchEngine) {
+    currentSearchEngine.value = settingsStore.settings.searchEngine
+  }
+  
+  if (savedSearchEngineId) {
+    currentSearchEngineId.value = parseInt(savedSearchEngineId)
+  } else {
+    const engineIndex = searchEngines.findIndex(e => e.url === currentSearchEngine.value)
+    currentSearchEngineId.value = engineIndex >= 0 ? engineIndex : 0
+  }
+  
+  // 加载内外网模式设置
+  const savedInternalMode = localStorage.getItem('isInternalMode')
+  if (savedInternalMode) {
+    isInternalMode.value = savedInternalMode === 'true'
+  }
+  
+  console.log('[Home] 设置初始化完成')
+}
+
+const loadCoreSettings = async () => {
+  console.log('[Home] 开始并行加载核心设置...')
+  
+  const [settingsResult, globalSettingsResult] = await Promise.allSettled([
+    settingsStore.loadSettings(),
+    globalSettingsStore.loadSettings()
+  ])
+  
+  if (settingsResult.status === 'fulfilled') {
     console.log('[Home] 个人设置加载完成:', settingsStore.settings)
-    
-    // 从 settingsStore 更新搜索引擎设置（优先使用数据库值）
     if (settingsStore.settings.searchEngine) {
       currentSearchEngine.value = settingsStore.settings.searchEngine
       const engineIndex = searchEngines.findIndex(e => e.url === currentSearchEngine.value)
       currentSearchEngineId.value = engineIndex >= 0 ? engineIndex : 0
       console.log('[Home] 从 settingsStore 更新搜索引擎:', currentSearchEngine.value, currentSearchEngineId.value)
     }
-    
-    // 2. 加载全局设置（包含网站标题、描述、页脚等）
-    console.log('[Home] 2. 加载全局设置...')
-    await globalSettingsStore.loadSettings()
+  } else {
+    console.warn('[Home] 个人设置加载失败:', settingsResult.reason)
+  }
+  
+  if (globalSettingsResult.status === 'fulfilled') {
     console.log('[Home] 全局设置加载完成:', globalSettingsStore.settings)
+  } else {
+    console.warn('[Home] 全局设置加载失败:', globalSettingsResult.reason)
+  }
+  
+  console.log('[Home] 核心设置加载完成')
+}
+
+const loadUserData = async () => {
+  console.log('[Home] 开始加载用户数据...')
+  
+  if (!authStore.isSessionValid()) {
+    console.log('[Home] 用户未登录，跳过用户信息和数据加载')
+    return
+  }
+  
+  const [userResult, dataResult] = await Promise.allSettled([
+    authStore.fetchUser(),
+    dataStore.fetchAll()
+  ])
+  
+  if (userResult.status === 'fulfilled') {
+    console.log('[Home] 用户信息加载完成:', authStore.user)
+  } else {
+    console.warn('[Home] 用户信息加载失败:', userResult.reason)
+  }
+  
+  if (dataResult.status === 'fulfilled') {
+    console.log('[Home] 数据加载完成 - 分组:', dataStore.groups.length, '项目:', dataStore.items.length)
+  } else {
+    console.warn('[Home] 数据加载失败:', dataResult.reason)
+  }
+  
+  console.log('[Home] 用户数据加载完成')
+}
+
+const initializePage = async () => {
+  console.log('[Home] 开始页面初始化...')
+  isInitializing.value = true
+  
+  try {
+    await initializeSettings()
     
-    // 3. 如果已登录，加载用户信息和数据
-    if (authStore.isSessionValid()) {
-      console.log('[Home] 3. 用户已登录，加载用户信息...')
-      await authStore.fetchUser()
-      console.log('[Home] 用户信息加载完成:', authStore.user)
-      
-      console.log('[Home] 4. 加载分组和项目数据...')
-      await dataStore.fetchAll()
-      console.log('[Home] 数据加载完成 - 分组:', dataStore.groups.length, '项目:', dataStore.items.length)
-    } else {
-      console.log('[Home] 3. 用户未登录，跳过用户信息和数据加载')
-    }
+    await loadCoreSettings()
+    
+    await loadUserData()
     
     console.log('[Home] 页面初始化完成')
   } catch (err) {
@@ -466,12 +502,26 @@ const initializePage = async () => {
   }
 }
 
+const initializeWithLazyLoad = async () => {
+  console.log('[Home] 开始懒加载初始化...')
+  
+  await initializeSettings()
+  
+  const corePromise = loadCoreSettings()
+  
+  loadUserData()
+  
+  await corePromise
+  
+  console.log('[Home] 懒加载初始化完成 - 核心设置已就绪，用户数据异步加载中')
+}
+
 const refreshAll = async () => {
   console.log('[Home] 开始刷新所有设置...')
   
   try {
     await settingsStore.loadSettings(true)
-    await globalSettingsStore.loadSettings(undefined, true)
+    await globalSettingsStore.loadSettings(true)
     
     if (authStore.isSessionValid()) {
       await dataStore.fetchAll()
@@ -486,7 +536,7 @@ const refreshAll = async () => {
 const refreshGlobalSettings = async () => {
   console.log('[Home] 刷新全局设置...')
   try {
-    await globalSettingsStore.loadSettings(undefined, true)
+    await globalSettingsStore.loadSettings(true)
     console.log('[Home] 全局设置刷新完成')
   } catch (err) {
     console.error('[Home] 全局设置刷新失败:', err)
@@ -749,23 +799,19 @@ const handleResize = () => {
 }
 
 onMounted(async () => {
-  // 执行页面初始化
-  await initializePage()
-
-  // 更新时间和设置定时器
   updateTime()
   timeInterval = window.setInterval(updateTime, 1000)
 
   window.addEventListener('resize', handleResize)
 
-  // 监听后台设置变更（跨 iframe 通信）
   const { listenForChanges } = useCrossFrameSync()
   globalSettingsUnsubscribe = listenForChanges(EVENTS.GLOBAL_SETTINGS_CHANGED, (newSettings) => {
     console.log('[Home] 收到后台设置变更通知，更新全局设置')
     globalSettingsStore.settings = { ...newSettings }
   })
 
-  // 连接 SSE 服务（服务器推送）- 在数据加载完成后连接
+  await initializeWithLazyLoad()
+
   connectSSE()
   
   const handleGroupCreated = (data: any) => {
@@ -840,7 +886,7 @@ onMounted(async () => {
   
   const handleGlobalSettingsChanged = (data: any) => {
     console.log('[Home] 收到全局设置变更通知:', data)
-    globalSettingsStore.loadSettings(undefined, true)
+    globalSettingsStore.loadSettings(true)
   }
   
   const settingsChangedUnsubscribe = onSSEEvent('settingsChanged', handleSettingsChanged)
@@ -852,7 +898,7 @@ onMounted(async () => {
     switch (message.type) {
       case 'global_settings_changed':
         // 全局设置变更，从 API 重新获取
-        globalSettingsStore.loadSettings(undefined, true)
+        globalSettingsStore.loadSettings(true)
         break
       case 'settingsChanged':
       case 'settings_changed':

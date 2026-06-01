@@ -36,7 +36,7 @@ const initApp = async () => {
   console.log(`[APP] ${timestamp} - App 组件挂载开始`)
 
   try {
-    console.log(`[APP] ${timestamp} - 开始加载全局设置(多语言)`)
+    console.log(`[APP] ${timestamp} - 开始加载全局设置`)
     await globalSettingsStore.loadSettings()
     console.log(`[APP] ${timestamp} - 全局设置加载完成:`, globalSettingsStore.websiteTitle)
 
@@ -51,15 +51,8 @@ const initApp = async () => {
 
     if (authStore.isSessionValid()) {
       console.log(`[APP] ${timestamp} - 会话有效，开始获取用户信息`)
-      const user = await authStore.fetchUser()
+      await authStore.fetchUser()
       console.log(`[APP] ${timestamp} - 用户信息获取完成`)
-
-      if (user && user.language) {
-        console.log(`[APP] ${timestamp} - 用户语言设置: ${user.language}`)
-        await globalSettingsStore.loadSettingsByUserLanguage(user.language)
-        console.log(`[APP] ${timestamp} - 根据用户语言重新加载全局设置完成`)
-        updatePageTitle(globalSettingsStore.websiteTitle)
-      }
     }
 
     console.log(`[APP] ${timestamp} - App 组件挂载完成`)
